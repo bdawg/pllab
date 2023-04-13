@@ -6,7 +6,7 @@ plt.ion()
 from plcams import *
 
 
-cam0 = credcam(camera_index=0, verbose=True)
+cam0 = credcam(camera_index=1, verbose=True)
 
 # Get n images
 n_ims = 100
@@ -19,10 +19,15 @@ print('Time to start: %f' % (cam0.loggedims_times_arr[0]-starttime))
 print('Total time: %f' % (cam0.loggedims_times_arr[-1]-starttime))
 
 
-win = (100, 220, 230, 350)
+# win = (100, 220, 230, 350)
 # win = (100, 220, 230, 530)
 # win = (100, 220, 230+300, 350+300)
 # win = (220, -1, 0, -1)
+
+cnt = (257, 340)
+wsz = 96
+win = (cnt[0]-wsz//2, cnt[0]+wsz//2-1, cnt[1]-wsz//2, cnt[1]+wsz//2-1)
+
 
 plt.figure(1)
 # immns = np.mean(imcube, axis=(1,2))
@@ -42,14 +47,24 @@ plt.plot(tdiff)
 plt.pause(0.001)
 
 
-offset = 0
-dk = imcube[0,:,:].astype('float32')
-plt.figure(3)
-for k in range(10):#imcube.shape[0]):
-    plt.clf()
-    plt.imshow(imcube[k+offset,win[0]:win[1], win[2]:win[3]]-dk[win[0]:win[1],
-                                                             win[2]:win[3]], clim=[-80,80])
-    plt.title(k+offset)
-    # plt.imshow(imcube[k+0, :, :] - dk[:, :])
-    plt.pause(0.001)
+plt.imshow(imcube[0, :, :])
+
+type(cam0.loggedims_cube[0][0,0])
+
+# offset = 0
+# dk = imcube[0,:,:].astype('float32')
+# plt.figure(3)
+# for k in range(10):#imcube.shape[0]):
+#     plt.clf()
+#     plt.imshow(imcube[k+offset,win[0]:win[1], win[2]:win[3]]-dk[win[0]:win[1],
+#                                                              win[2]:win[3]], clim=[-80,80])
+#     plt.title(k+offset)
+#     # plt.imshow(imcube[k+0, :, :] - dk[:, :])
+#     plt.pause(0.001)
+
+
+# t = time.perf_counter()
+# for k in range(1000000):
+#     pass
+# print((time.perf_counter()-t)/1000000)
 
