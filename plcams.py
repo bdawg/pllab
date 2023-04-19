@@ -25,7 +25,7 @@ class credcam:
 
         self.cam_context = FliSdk_V2.Init()
         self.camera_index = camera_index
-        self_latest_im = None
+        self.latest_im = None
         self.nims_lefttolog = 0
         self.nims_tolog = 1
         self.update_latestim = False
@@ -115,19 +115,21 @@ class credcam:
 
 
     def get_latest_image(self, return_im=True, waitfornewframe=True):
-
         if waitfornewframe:
             self.update_latestim = True
             while self.update_latestim:
+                # self.goodtimer(0.1)
                 pass
                 # time.sleep(0.001)
         else:
             # This doesn't support signed ints...
-            new_im = FliSdk_V2.GetRawImageAsNumpyArray(self.cam_context, -1)  # -1 gets most recent image
-            # ArrayType = ctypes.c_uint16 * self.camdims[0] * self.camdims[1]
-            # pa = ctypes.cast(image, ctypes.POINTER(ArrayType))
-            # buffer = np.ndarray((self.camdims[1], self.camdims[0]), dtype=np.int16, buffer=pa.contents)
-            # new_im = np.copy(buffer)
+            # new_im = FliSdk_V2.GetRawImageAsNumpyArray(self.cam_context, -1)  # -1 gets most recent image
+
+            image = FliSdk_V2.GetRawImage(self.cam_context, -1)
+            ArrayType = ctypes.c_uint16 * self.camdims[0] * self.camdims[1]
+            pa = ctypes.cast(image, ctypes.POINTER(ArrayType))
+            buffer = np.ndarray((self.camdims[1], self.camdims[0]), dtype=np.int16, buffer=pa.contents)
+            new_im = np.copy(buffer)
             self.latest_im = new_im
 
         self.loggedims_times_arr = [time.perf_counter()]
@@ -178,7 +180,11 @@ class credcam:
         self.loggedims_times_arr = np.zeros(self.nims_tolog)
 
 
-
+    def goodtimer(self, time_ms):
+        tm = time_ms/1000
+        t0 = time.perf_counter()
+        while time.perf_counter() - t0 < tm:
+            pass
 
 
 

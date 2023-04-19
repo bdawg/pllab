@@ -37,18 +37,24 @@ nloops = 10
 sleeptime = 0.001
 n_imstolog = 1
 
+slm.slmwrite(all_slmimages[0, :, :], showplot=False)
+time.sleep(0.5)
+
 cam.set_nims_tolog(n_imstolog)
 all_camims = np.zeros((nloops*len(all_slmimages), cam.camdims[1], cam.camdims[0]), dtype=np.int16)
 all_imtimes = np.zeros(nloops*len(all_slmimages))
 count = 0
 for k in range(nloops):
     for l in range(len(all_slmimages)):
-        slmim = all_slmimages[l, :, :]
-        slm.slmwrite(slmim, showplot=False)
-        time.sleep(sleeptime)
-        # camim = cam.get_n_images(return_ims=True, coadd=True, subtract_dark=False)
-        camim = cam.get_latest_image(waitfornewframe=True, return_im=True)
-        all_camims[count, :, :] = camim
+        # slmim = all_slmimages[l, :, :]
+        # slm.slmwrite(slmim, showplot=False)
+        # time.sleep(sleeptime)
+
+        cam.goodtimer(1)
+
+        # camim = cam.get_n_images(return_ims=True, coadd=False, subtract_dark=False)
+        camim = cam.get_latest_image(waitfornewframe=False, return_im=False)
+        # all_camims[count, :, :] = camim
         all_imtimes[count] = cam.loggedims_times_arr[0]
         count += 1
 
@@ -56,7 +62,7 @@ print('Done')
 
 
 cnt = (257, 340)
-wsz = 96
+wsz = 48 #96
 
 win = (cnt[0]-wsz//2, cnt[0]+wsz//2-1, cnt[1]-wsz//2, cnt[1]+wsz//2-1)
 
@@ -76,9 +82,9 @@ plt.tight_layout()
 
 
 # offset = 0
-# for k in range(2): #all_camims.shape[0]):
+# for k in range(10): #all_camims.shape[0]):
 #     plt.clf()
-#     plt.imshow(all_croppedims)
+#     plt.imshow(all_croppedims[k,:,:])
 #     plt.title(k+offset)
-#     plt.pause(1)
+#     plt.pause(0.5)
 
