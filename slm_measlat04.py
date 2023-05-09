@@ -1,8 +1,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import time
-from plslm import *
-from plcams import *
+from plslm import plslm
+from plcams import credcam
 import matplotlib
 matplotlib.use('TkAgg')
 
@@ -35,19 +35,19 @@ cnt = (257, 340)
 wsz = 48 #96
 
 nloops = 100
-# n_imstolog = 1
+n_imstolog = 1
 
 save_all_ims = True
 
 slm.slmwrite(all_slmimages[0, :, :], showplot=False)
 time.sleep(0.5)
-# cam.set_nims_tolog(n_imstolog)
+cam.set_nims_tolog(n_imstolog)
 
 wait_time_ms = 10
 
 # wait_times = np.arange(0, 10.1, 0.1)
-wait_times = np.arange(0, 20.1, 0.1)
-# wait_times = np.arange(0, 4, 1)
+# wait_times = np.arange(0, 20.1, 0.1)
+wait_times = np.arange(0, 4, 1)
 # wait_times = np.arange(10.0, 20.2, 0.2)
 
 
@@ -71,6 +71,9 @@ for wait_time_ms in wait_times:
             cam.goodtimer(wait_time_ms)
 
             camim = cam.get_latest_image(waitfornewframe=False, return_im=True)
+            # camim = cam.get_n_images(return_ims=True, coadd=False, subtract_dark=False)
+            # camim = np.squeeze(camim)
+
             croppedim = camim[win[0]:win[1], win[2]:win[3]]
             all_camims[count, :, :] = croppedim
             all_imtimes[count] = cam.loggedims_times_arr[0]
@@ -89,14 +92,14 @@ for wait_time_ms in wait_times:
 all_imfluxes = np.asarray(all_imfluxes)
 all_eltimes = np.asarray(all_eltimes)
 
-np.savez('timingdata.npz', all_imfluxes=all_imfluxes, all_eltimes=all_eltimes, wait_times=wait_times)
-if save_all_ims:
-    all_ims = np.asarray(all_ims)
-    np.savez('timingdata_images.npz', all_ims=all_ims, all_imfluxes=all_imfluxes, all_eltimes=all_eltimes,
-             wait_times=wait_times)
+# np.savez('timingdata.npz', all_imfluxes=all_imfluxes, all_eltimes=all_eltimes, wait_times=wait_times)
+# if save_all_ims:
+#     all_ims = np.asarray(all_ims)
+#     np.savez('timingdata_images.npz', all_ims=all_ims, all_imfluxes=all_imfluxes, all_eltimes=all_eltimes,
+#              wait_times=wait_times)
 
 
-plt.plot(np.diff(all_eltimes[0,:]),'-+')
+# plt.plot(np.diff(all_eltimes[0,:]),'-+')
 
 
 cmap = 'gray'

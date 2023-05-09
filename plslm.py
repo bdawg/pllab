@@ -11,7 +11,7 @@ plt.ion()
 class plslm:
     def __init__(self, lutfile=None, slmtimeout=5000, slmoffset=127):
         if lutfile is None:
-            lutfile = 'C:\\Program Files\\Meadowlark Optics\\Blink OverDrive Plus\\LUT Files\\1024x1024_linearVoltage.LUT'
+            lutfile = 'C:\\Program Files\\Meadowlark Optics\\Blink OverDrive Plus\\LUT Files\\slm6658_at1550_75C.LUT'
 
         cdll.LoadLibrary("C:\\Program Files\\Meadowlark Optics\\Blink OverDrive Plus\\SDK\\Blink_C_wrapper")
         self.slmobj = CDLL("Blink_C_wrapper")
@@ -27,7 +27,7 @@ class plslm:
         self.board_number = c_uint(1)
         self.wait_For_Trigger = c_uint(0)
         self.flip_immediate = c_uint(0)
-        self.OutputPulseImageFlip = c_uint(0)
+        self.OutputPulseImageFlip = c_uint(1)
         self.OutputPulseImageRefresh = c_uint(0)  # only supported on 1920x1152, FW rev 1.8.
         self.timeout_ms = c_uint(slmtimeout)
 
@@ -61,7 +61,7 @@ class plslm:
         print('SLM closed.')
 
 
-    def slmwrite(self, im=None, showplot=False):
+    def slmwrite(self, im=None, showplot=False, skip_readycheck=False):
         if im is None:
             im = self.nextim
         im = im + self.slmoffset
@@ -72,10 +72,11 @@ class plslm:
         if (errorval == -1):
             print("SLM write failed")
 
-        # check the buffer is ready to receive the next image
-        errorval = self.slmobj.ImageWriteComplete(self.board_number, self.timeout_ms)
-        if (errorval == -1):
-            print("ImageWriteComplete failed, trigger never received?")
+        if not skip_readycheck:
+            # check the buffer is ready to receive the next image
+            errorval = self.slmobj.ImageWriteComplete(self.board_number, self.timeout_ms)
+            if (errorval == -1):
+                print("ImageWriteComplete failed, trigger never received?")
 
         if showplot:
             plt.clf()

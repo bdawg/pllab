@@ -9,38 +9,47 @@ import FliSdk_V2
 
 
 class credcam:
-    def __init__(self, camera_index=0, verbose=False, dflt_settings=None, darkpath='./darks/',
-                 darkfile='default_dark'):
+    def __init__(self, camera_index=0, camera_id=None, verbose=False, cam_settings=None,
+                 darkpath='./', darkfile=None):
 
-        if dflt_settings is None:
+        if cam_settings is None:
             self.dflt_settings = {'sensitivity': 'low',
-                                  'bias mode': 'off',
+                                  'bias mode': 'on',
                                   'flat mode': 'off',
                                   'badpixel mode': 'on',
                                   'fps': 600,#1e6, # 1e6 Sets to maximum
                                   'tint': 0.00005 # 1 Sets to maximum # 0.0002
                                   }
         else:
-            self.dflt_settings = dflt_settings
+            self.dflt_settings = cam_settings
 
         self.cam_context = FliSdk_V2.Init()
-        self.camera_index = camera_index
         self.latest_im = None
         self.nims_lefttolog = 0
         self.nims_tolog = 1
         self.update_latestim = False
+        self.syncdelay = None
 
         callback_fps = 0  # 0 for full speed
 
         self.darkpath = darkpath
-        try:
+        if darkfile is not None:
             self.dark = np.load(self.darkpath+darkfile+'.npy')
-        except:
-            print('Could not load darkfile '+ self.darkpath+darkfile+'.npy, setting to 0')
+            if verbose:
+                print('Using darkfile ' + self.darkpath+darkfile)
+        else:
             self.dark = 0
 
         grabber_list = FliSdk_V2.DetectGrabbers(self.cam_context)
         camera_list = FliSdk_V2.DetectCameras(self.cam_context)
+
+        if camera_id is not None:
+            camera_index_l = [i for i, s in enumerate(camera_list) if camera_id in s]
+            if len(camera_index_l) != 1:
+                print("Error: couldn't find specified camera id")
+            camera_index = camera_index_l[0]
+
+        self.camera_index = camera_index
 
         num_cameras = len(camera_list)
         if verbose:
@@ -54,16 +63,17 @@ class credcam:
         errorval = FliSdk_V2.Update(self.cam_context)
         self.camdims = FliSdk_V2.GetCurrentImageDimension(self.cam_context)
 
-        # TODO
-        buffersize_ims = 1000
+        # TODO properly
+        buffersize_ims = 2000
         FliSdk_V2.SetBufferSizeInImages(self.cam_context, buffersize_ims)
 
         self.loggedims_cube = np.zeros((self.nims_tolog, self.camdims[1], self.camdims[0]), dtype=np.int16)
         self.loggedims_times_arr = np.zeros(self.nims_tolog)
 
         self.wrappedFunc = FliSdk_V2.CWRAPPER(self.newim_callbackfunc)
-        FliSdk_V2.AddCallBackNewImage(self.cam_context, self.wrappedFunc, callback_fps, False, 0)
+        FliSdk_V2.AddCallBackNewImage(self.cam_context, self.wrappedFunc, callback_fps, True, 0) #True
 
+        self.external_trigger(enabled=False)
         FliSdk_V2.Start(self.cam_context)
         self.set_camera_defaults(verbose=verbose)
 
@@ -81,12 +91,43 @@ class credcam:
             print(' ')
             print(self.send_command('fps'))
             print(self.send_command('tint'))
+            
+
+    def reset_buffer(self):
+        FliSdk_V2.ResetBuffer(self.cam_context)
+
+
+    def camera_start(self):
+        FliSdk_V2.Start(self.cam_context)
+
+
+    def camera_stop(self):
+        FliSdk_V2.Stop(self.cam_context)
 
 
     def close(self):
         FliSdk_V2.Stop(self.cam_context)
         FliSdk_V2.Exit(self.cam_context)
         print('Closed context for camera %d' % self.camera_index)
+
+
+    def external_trigger(self, enabled, syncdelay=None, verbose=False):
+        if enabled:
+            self.send_command('set extsynchro exposure internal', verbose=verbose)
+            self.send_command('set extsynchro source external', verbose=verbose)
+            self.send_command('set extsynchro on', verbose=verbose)
+            self.send_command('set extsynchro polarity standard', verbose=verbose)
+            if syncdelay is not None:
+                self.syncdelay = syncdelay
+                self.send_command('set syncdelay ' + str(syncdelay/1000), verbose=verbose)
+            print('External synchronisation ENABLED')
+        else:
+            self.send_command('set extsynchro off', verbose=verbose)
+            print('External synchronisation DISABLED')
+
+
+    def set_tint(self, tint, verbose=False):
+        self.send_command('set tint ' + str(tint), verbose=verbose)
 
 
     def take_dark(self, darkfile='default_dark', navs=1000, save=False):
@@ -105,7 +146,7 @@ class credcam:
         print('Loaded darkframe from '+self.darkpath+darkfile+'.npy')
 
 
-    def send_command(self, commandstr, return_response = True, verbose = False):
+    def send_command(self, commandstr, return_response=True, verbose=False):
         errorval, response = FliSdk_V2.FliSerialCamera.SendCommand(self.cam_context, commandstr)
         if verbose:
             print(commandstr)
@@ -122,7 +163,7 @@ class credcam:
                 pass
                 # time.sleep(0.001)
         else:
-            # This doesn't support signed ints...
+            ## This doesn't support signed ints...
             # new_im = FliSdk_V2.GetRawImageAsNumpyArray(self.cam_context, -1)  # -1 gets most recent image
 
             image = FliSdk_V2.GetRawImage(self.cam_context, -1)
@@ -135,6 +176,30 @@ class credcam:
         self.loggedims_times_arr = [time.perf_counter()]
         if return_im:
             return self.latest_im
+
+
+    def check_nims_buffer(self):
+        n_buffer_ims = FliSdk_V2.GetBufferFilling(self.cam_context) + 1
+        return n_buffer_ims
+
+
+    def get_buffer_images(self, return_im=True, verbose=False):
+        ## This doesn't support signed ints...
+        # new_im = FliSdk_V2.GetRawImageAsNumpyArray(self.cam_context, -1)  # -1 gets most recent image
+
+        n_buffer_ims = FliSdk_V2.GetBufferFilling(self.cam_context) + 1
+        print('Num images in buffer: %.1f' % n_buffer_ims)
+
+        self.loggedims_cube = np.zeros((n_buffer_ims, self.camdims[1], self.camdims[0]), dtype=np.int16)
+        for k in range(n_buffer_ims):
+            image = FliSdk_V2.GetRawImage(self.cam_context, k)
+            ArrayType = ctypes.c_uint16 * self.camdims[0] * self.camdims[1]
+            pa = ctypes.cast(image, ctypes.POINTER(ArrayType))
+            buffer = np.ndarray((self.camdims[1], self.camdims[0]), dtype=np.int16, buffer=pa.contents)
+            self.loggedims_cube[k,:,:] = np.copy(buffer)
+
+        if return_im:
+            return self.loggedims_cube
 
 
     def newim_callbackfunc(self, image, ctx): #Use different method than numpy one to avoid dupes? E.g get straight from a buffer?

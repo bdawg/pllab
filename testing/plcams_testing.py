@@ -38,9 +38,9 @@ print('Fps: %f' % fps)
 # errorval, fps = FliSdk_V2.FliSerialCamera.GetFps(cam_context)
 # print('Fps: %f' % fps)
 #
-# # Send and receive using serial commands
-# errorval, response = FliSdk_V2.FliSerialCamera.SendCommand(cam_context, cam_cmd)
-# print('Response: ' + response)
+# Send and receive using serial commands
+errorval, response = FliSdk_V2.FliSerialCamera.SendCommand(cam_context, cam_cmd)
+print('Response: ' + response)
 #
 # # print('Starting cam in 3 seconds')
 # # time.sleep(3)
