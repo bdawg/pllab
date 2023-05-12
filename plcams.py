@@ -197,12 +197,13 @@ class credcam:
             pa = ctypes.cast(image, ctypes.POINTER(ArrayType))
             buffer = np.ndarray((self.camdims[1], self.camdims[0]), dtype=np.int16, buffer=pa.contents)
             self.loggedims_cube[k,:,:] = np.copy(buffer)
-
+        print('get_buffer_ims: loop done')
         if return_im:
             return self.loggedims_cube
 
 
-    def newim_callbackfunc(self, image, ctx): #Use different method than numpy one to avoid dupes? E.g get straight from a buffer?
+    def newim_callbackfunc(self, image, ctx): #Use different method than numpy one to avoid dupes? E.g get straight
+        # from a buffer?
         # new_im = FliSdk_V2.GetRawImageAsNumpyArray(self.cam_context, -1)  # -1 gets most recent image
 
         ArrayType = ctypes.c_uint16 * self.camdims[0] * self.camdims[1]

@@ -10,7 +10,7 @@ matplotlib.use('TkAgg')
 plt.ion()
 
 
-camnum = 0 # Logical camera number. Would be specified when launching script.
+# camnum = 0 # Logical camera number. Would be specified when launching script.
 camdims = (640, 512) # Needs to be decided ahead of time
 
 # Set up shared memory for both shareable list (for communication) and image data array

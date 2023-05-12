@@ -100,9 +100,9 @@ class plslm:
             plt.pause(0.001)
 
 
-    def makestripes(self, period=10, angle=0, ampl=100, phi=0, type='square', showplot=False, sendtoslm=False):
+    def makestripes(self, period=10, angle=0, ampl=100, phi=0, type='square', showplot=False, sendtoslm=False,
+                    return_im=False):
         # phi = np.pi/2
-
         x = np.arange(-self.slmdims[0]/2, self.slmdims[0]/2)
         x_rad = x * (1 / period) * 2 * np.pi
 
@@ -124,7 +124,12 @@ class plslm:
             plt.colorbar()
             plt.pause(0.001)
 
-        
+        if return_im:
+            return im
+
+
+
+
 
 
 
