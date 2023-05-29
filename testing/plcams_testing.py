@@ -12,7 +12,7 @@ import FliSdk_V2
 cam_index = 1
 
 # A command to send
-cam_cmd = 'set tint 1'
+cam_cmd = 'set sensitivity low'
 
 cam_context = FliSdk_V2.Init()
 listOfGrabbers = FliSdk_V2.DetectGrabbers(cam_context)

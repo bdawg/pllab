@@ -9,30 +9,42 @@ from plslm import plslm
 from plcams import credcam
 from multiprocessing import shared_memory
 import subprocess
+from datetime import datetime
 import matplotlib
 matplotlib.use('TkAgg')
 
 
 # noinspection PyStringFormat
 class pllab:
-    def __init__(self, datadir='./', camstosave=('pl'), shm_mode=True, darkfiles=None, darkpath='./',
+    def __init__(self, datadir='./', camstosave=('pl'), shm_mode=True, darkfile=None, darkpath='./',
                  delays=(12,3), verbose=False, cam_settings=None, winparams=None, lutfile=None,
-                 camdims=(640,512), cube_nims=1000):
+                 camdims=(640,512), cropdims=None, cube_nims=1000, winparams_fluxsum=None):
         self.datadir = datadir
-        self.darkfiles = darkfiles
+        self.darkfile = darkfile
+        self.darkpath = darkpath
         self.cam_syncdelay_ms = delays[0]
         self.extra_delay_ms = delays[1]
         self.wins = []
         self.verbose = verbose
         self.shm_mode = shm_mode
-        self.camdims = camdims
+        # self.camdims = camdims
         self.cube_nims = cube_nims
+        self.cropdims = cropdims
         self.all_imcubes = []
+        self.darkframes = []
 
         # Define camera ids for each camera
         camids = {'pl': 'c86ca65',
                   'psf': '1de3043',
                   'refl': '1de3be41'}
+
+        if winparams_fluxsum is None:
+            # self.winparams_fluxsum = [[257, 340, 42],
+            #                           [160, 282, 120]]
+            self.winparams_fluxsum = [[145, 141, 42], #Crop mode
+                                      [88, 77, 120]]
+        else:
+            self.winparams_fluxsum = winparams_fluxsum
 
         if shm_mode is False:
             print('Error: only shared memory mode is currently implemented')
@@ -60,19 +72,23 @@ class pllab:
             self.all_cam_imshm_obj = []
             self.all_subproc_camproc = []
             self.all_shmnames = []
+            self.camdims = []
             for k in range(len(camstosave)):
                 camid = camids[camstosave[k]]
                 if cam_settings is None:
                     cur_cam_settings = None
                 else:
                     cur_cam_settings = cam_settings[k]
-                if darkfiles is None:
-                    darkfile = None
-                else:
-                    darkfile = darkfiles[k]
-                self.setup_shm_cameras(camid, camindex, cur_cam_settings, darkfile)
-                camindex += 1
 
+                if self.cropdims is not None:
+                    ncols = self.cropdims[camindex][1] - self.cropdims[camindex][0] + 1
+                    nrows = self.cropdims[camindex][3] - self.cropdims[camindex][2] + 1
+                    self.camdims.append([ncols, nrows])
+                else:
+                    self.camdims.append(camdims)
+
+                self.setup_shm_cameras(camid, camindex, cur_cam_settings)#, darkfile)
+                camindex += 1
 
         # Instantiate SLM
         self.slm = plslm(lutfile=lutfile)
@@ -86,8 +102,11 @@ class pllab:
                        winparam[1] + wsz // 2)
                 self.wins.append(win)
 
+        if self.darkfile is not None:
+            self.load_darkfile()
 
-    def setup_shm_cameras(self, camid, camindex=0, cur_cam_settings=None, darkfile=None):
+
+    def setup_shm_cameras(self, camid, camindex=0, cur_cam_settings=None): #, darkfile=None):
         # Set up shared memory for both shareable list (for communication) and image data array
         # Todo - either pass name of cam settings file via the commsl, or use dictionaries with ultradict
 
@@ -104,6 +123,10 @@ class pllab:
         [6]  - current cube_nims, if < max cube_nims
         
         [10] - cam acquire. Set to 1 to acquire cube, and camprocess will set to 0 when acq complete.
+        [11] to [14] - cropdims (or None for full frame)
+        
+        cropdims are defined as [FirstColumn, LastColumn, FirstRow, LastRow]. 
+        Columns must be in steps of 32, rows in steps of 4.
         """
         cam_commsl_shmname = 'cam%d_commsl' % camindex
         cam_imshm_shmname = 'cam%d_imshm' % camindex
@@ -121,17 +144,34 @@ class pllab:
         for k in range(sl_nitems): # Once memory allocated, initialise with Nones
             cam_commsl[k] = None
 
-        init_cube = np.zeros((self.cube_nims, self.camdims[1], self.camdims[0]), dtype=np.int16)
+        init_cube = np.zeros((self.cube_nims, self.camdims[camindex][1], self.camdims[camindex][0]), dtype=np.int16)
         cam_imshm_obj = shared_memory.SharedMemory(name=cam_imshm_shmname, create=True, size=init_cube.nbytes)
         cam_imshm = np.ndarray(init_cube.shape, dtype=init_cube.dtype, buffer=cam_imshm_obj.buf)
         cam_imshm[:] = np.copy(init_cube)
         del init_cube
 
         cam_commsl[2] = self.cube_nims
-        cam_commsl[3] = self.camdims[0]
-        cam_commsl[4] = self.camdims[1]
+        cam_commsl[3] = self.camdims[camindex][0]
+        cam_commsl[4] = self.camdims[camindex][1]
         cam_commsl[5] = 0
         cam_commsl[10] = 0
+
+        if self.cropdims is not None:
+            # cropdims are defined as [FirstColumn, LastColumn, FirstRow, LastRow].
+            # Columns must be in steps of 32, rows in steps of 4.
+            cropdims = self.cropdims[camindex]
+            cam_commsl[11] = cropdims[0]
+            cam_commsl[12] = cropdims[1]
+            cam_commsl[13] = cropdims[2]
+            cam_commsl[14] = cropdims[3]
+
+        # ##### DEBUG #####
+        # print(' ')
+        # print('Debug from pllab.setup_shm_cameras()')
+        # print('Camera index %d' % camindex)
+        # print('Camera ' + camid)
+        # print([cam_commsl[2], cam_commsl[3], cam_commsl[4], cam_commsl[5], cam_commsl[10]])
+        # #####
 
         # Set up camera processes
         if self.verbose:
@@ -149,6 +189,7 @@ class pllab:
         self.all_cam_imshm_obj.append(cam_imshm_obj)
         self.all_subproc_camproc.append(subproc_camproc)
         self.all_cam_indexes.append(camindex)
+
         print('Camera ' + camid + ' ready.')
 
 
@@ -157,19 +198,25 @@ class pllab:
             shared_memory.SharedMemory(name=shmname).unlink()
 
 
-    def load_slmims(self, slmims_filename, slmims_path=''):
+    def load_slmims(self, slmims_filename, slmims_path='', slmim_array_name='all_slmims'):
         slmimdataf = np.load(slmims_path + slmims_filename)
-        slmims = slmimdataf['all_slmims']
-        if type(slmims[0,0,0]) is not np.int8:
-            print('Error: input SLM cube not int8')
-            return
+        slmims = slmimdataf[slmim_array_name]
+        if type(slmims[0,0,0]) is not np.uint8:
+            print('Warning: input SLM cube not uint8, converting.')
+            slmims = slmims.astype('uint8')
+            # return
         self.all_slmims = slmims
-        self.all_slmim_params = slmimdataf['all_slmim_params']
+        try:
+            self.all_slmim_params = slmimdataf['all_slmim_params']
+        except:
+            print('Warning: no slmim params array found')
+            self.all_slmim_params = None
         self.slmims_filename = slmims_filename
         print('Loaded SLM image data file '+slmims_path + slmims_filename)
 
 
-    def run_measurements_shm(self, return_data=False, current_cube_nims=None, truncate_zeros=True):
+    def run_measurements_shm(self, return_data=False, current_cube_nims=None, truncate_zeros=True,
+                             plot_final=False, plot_whileacq=False):
         if current_cube_nims is not None:
             cube_nims = current_cube_nims
             for sl in self.all_cam_commsl:
@@ -177,7 +224,7 @@ class pllab:
         else:
             cube_nims = self.cube_nims
         n_slmfrms = self.all_slmims.shape[0]
-        if cube_nims % n_slmfrms != 0:
+        if (cube_nims % n_slmfrms != 0):
             print('Error: cube_nims must be a multiple of number of input slm frames')
             return
         nloops = int(cube_nims / n_slmfrms)
@@ -195,9 +242,11 @@ class pllab:
         count = 0
         for k in range(nloops):
             for l in range(n_slmfrms):
+                slmim = self.all_slmims[l,:, :]
                 if count % 100 == 0:
                     print('Acquiring measurement %d' % count)
-                slmim = self.all_slmims[l,:, :]
+                    if plot_whileacq:
+                        self.plot_curr(slmim, count)
                 self.slm.slmwrite(slmim, showplot=False, skip_readycheck=True)
                 count += 1
                 self.goodtimer(wait_time_ms)
@@ -214,19 +263,111 @@ class pllab:
             time.sleep(0.5)
         print('Acquisition complete - elapsed time %.2f seconds' % (time.time() - starttime))
 
-        for k in self.all_cam_indexes:
-            cam_imshm_obj = self.all_cam_imshm_obj[k]
-            cam_imshm = np.ndarray((self.cube_nims, self.camdims[1], self.camdims[0]), dtype=np.int16,
-                                   buffer=cam_imshm_obj.buf)
-            data = np.copy(cam_imshm)
+        for camindex in self.all_cam_indexes:
+            cam_imshm_obj = self.all_cam_imshm_obj[camindex]
+            cam_imshm = np.ndarray((self.cube_nims, self.camdims[camindex][1], self.camdims[camindex][0]),
+                                   dtype=np.int16, buffer=cam_imshm_obj.buf)
+            data = np.copy(cam_imshm) # TODO fix
             if truncate_zeros and (cube_nims < self.cube_nims):
                 data = np.copy(cam_imshm)
                 self.all_imcubes.append(data[:cube_nims, :, :])
             else:
                 self.all_imcubes.append(np.copy(cam_imshm))
 
+        if plot_final:
+            self.show_ims()
+
         if return_data:
             return self.all_imcubes
+
+
+    def take_darks(self, darkfile='default_dark', navs=1000, save=False):
+        self.darkframes = []
+        cube_nims = navs
+        for sl in self.all_cam_commsl:
+            sl[6] = cube_nims
+        wait_time_ms = self.cam_syncdelay_ms + self.extra_delay_ms
+
+        for sl in self.all_cam_commsl:
+            sl[10] = 1
+        time.sleep(0.1) # Allow for polling rate of camprocesses to sl
+
+        slmim = np.zeros((self.slm.slmdims[0], self.slm.slmdims[1]), dtype='int8')
+        starttime = time.time()
+        count = 0
+        for k in range(cube_nims):
+            if count % 100 == 0:
+                print('Acquiring measurement %d' % count)
+            self.slm.slmwrite(slmim, showplot=False, skip_readycheck=True)
+            count += 1
+            self.goodtimer(wait_time_ms)
+
+        waiting = True
+        while waiting:
+            aqstatsum = 0
+            for sl in self.all_cam_commsl:
+                aqstatsum += sl[10]
+            if aqstatsum == 0:
+                waiting = False
+            if self.verbose:
+                print('Waiting for camprocesses to finish acquiring...')
+            time.sleep(0.5)
+        print('Acquisition complete - elapsed time %.2f seconds' % (time.time() - starttime))
+
+        for camindex in self.all_cam_indexes:
+            cam_imshm_obj = self.all_cam_imshm_obj[camindex]
+            cam_imshm = np.ndarray((cube_nims, self.camdims[camindex][1], self.camdims[camindex][0]),
+                                   dtype=np.int16, buffer=cam_imshm_obj.buf)
+            imcube = np.copy(cam_imshm)
+            darkframe = np.mean(imcube,0)
+            self.darkframes.append((darkframe))
+
+        if save:
+            print('Saving to ' + self.darkpath + darkfile)
+            np.savez(self.darkpath+darkfile+'.npz', darkframes=self.darkframes,
+                     datestr=datetime.now().isoformat())
+
+
+    def load_darks(self, darkfile=None):
+        if darkfile is not None:
+            self.darkfile = darkfile
+        df = np.load(self.darkpath + self.darkfile, allow_pickle=True)
+        self.darkframes = df['darkframes']
+        print('Loaded darkframe ' + self.darkfile + ' with date ' + df['datestr'].item())
+
+
+    def show_ims(self, imagedata=None, ncams=2, fignum=0, zero_firstrow=True,
+                 winparams=None):
+        if imagedata is None:
+            imagedata = self.all_imcubes
+        else:
+            if not isinstance(imagedata, list):
+                imagedata = np.expand_dims(imagedata, 0)
+                imagedata = [imagedata]
+                ncams = 1
+        if winparams is not None:
+            wins = []
+            for winparam in winparams:
+                wsz = winparam[2]
+                win = (winparam[0] - wsz // 2, winparam[0] + wsz // 2, winparam[1] - wsz // 2,
+                       winparam[1] + wsz // 2)
+                wins.append(win)
+        plt.figure(fignum)
+        plt.clf()
+        for k in range(ncams):
+            plt.subplot(ncams+1, 1, k+1)
+            im = imagedata[k][-1,:,:]
+            if len(self.darkframes) > 0:
+                im = im - self.darkframes[k]
+            if zero_firstrow:
+                im[0,:] = 0
+            if winparams is not None:
+                im = im[wins[k][0]:wins[k][1], wins[k][2]:wins[k][3]]
+            plt.imshow(im)
+        plt.subplot(ncams+1, 1, ncams+1)
+        plt.imshow(self.slm.nextim)
+        plt.tight_layout()
+        plt.pause(0.001)
 
 
     def send_shm_camcommand(self, cam_index, cmd_string, return_response=False):
@@ -305,32 +446,36 @@ class pllab:
             pass
 
 
-    def imfluxes(self, camnum):
-        flux = np.mean(self.allcams_camims[camnum], (1,2))
-        return flux
+    def imfluxes(self,  window=False, winparams=None):
+        if winparams is None:
+            winparams = self.winparams_fluxsum
+        wins = []
+        for winparam in winparams:
+            wsz = winparam[2]
+            win = (winparam[0] - wsz // 2, winparam[0] + wsz // 2, winparam[1] - wsz // 2,
+                   winparam[1] + wsz // 2)
+            wins.append(win)
+        all_fluxes = []
+        for k in self.all_cam_indexes:
+            cube = self.all_imcubes[k]
+            if len(self.darkframes) > 0:
+                cube = cube - self.darkframes[k]
+            if window:
+                cube = cube[:, wins[k][0]:wins[k][1], wins[k][2]:wins[k][3]]
+            cubefluxes = np.sum(cube, axis=(1, 2))
+            all_fluxes.append(cubefluxes)
+        return all_fluxes
 
 
     def plot_imfluxes(self, window=False, winparams=None, fignum=1):
-        if winparams is not None:
-            wins = []
-            for winparam in winparams:
-                wsz = winparam[2]
-                win = (winparam[0] - wsz // 2, winparam[0] + wsz // 2, winparam[1] - wsz // 2,
-                       winparam[1] + wsz // 2)
-                wins.append(win)
-        else:
-            wins = self.wins
+        all_fluxes = self.imfluxes(window=window, winparams=winparams)
+
         plt.figure(fignum)
         plt.clf()
         nplots = len(self.all_cam_indexes)
         for k in self.all_cam_indexes:
-            if window:
-                cube = self.all_imcubes[k][:, wins[k][0]:wins[k][1], wins[k][2]:wins[k][3]]
-            else:
-                cube = self.all_imcubes[k]
-            cubefluxes = np.sum(cube, axis=(1, 2))
             plt.subplot(nplots, 1, k+1)
-            plt.plot(cubefluxes)
+            plt.plot(all_fluxes[k])
             plt.title('Camera %d fluxes' % k)
 
 
@@ -369,10 +514,63 @@ class pllab:
         for ind in cam_subset:
             savesubstr = savesubstr + 'imcube_cam%d=self.all_imcubes[%d], ' % (ind, ind)
         savestr = 'np.savez(self.datadir+filename, ' + savesubstr + \
-                  'all_slmim_params=self.all_slmim_params, slmims_filename=self.slmims_filename)'
+                  'all_slmim_params=self.all_slmim_params, slmims_filename=self.slmims_filename, ' + \
+                  'darkframes=self.darkframes, darkfile=self.darkfile)'
         print('Saving data to ' + filename)
         exec(savestr)
         print('Saving done.')
+
+
+    def plot_curr(self, slmim, count, fignum=2, figsize=(4,10)):
+        plt.figure(fignum)
+        plt.clf()
+        plt.imshow(slmim)
+        plt.colorbar()
+        plt.title('SLM image')
+        plt.subplot(311)
+        plt.imshow(slmim)
+        plt.colorbar()
+        plt.title('SLM image for frame %d' % count)
+        plt.pause(0.001)
+
+
+    def slmposnscan_coarse(self, num_lin_posns=32, ksz=32, meas_range=None, period=10, ampl=100, showplot=True,
+                           plot_whileacq=False):
+
+        print('Generating SLM patterns...')
+        strfrm = self.slm.makestripes(period=period, ampl=ampl, return_im=True)
+        slmdim = self.slm.slmdims[0]
+        if meas_range is None:
+            meas_posns = [np.linspace(0, slmdim, num_lin_posns).astype(int),
+                          np.linspace(0, slmdim, num_lin_posns).astype(int)]
+        else:
+            meas_posns = [np.linspace(meas_range[0], meas_range[1], num_lin_posns).astype(int),
+                          np.linspace(meas_range[2], meas_range[3], num_lin_posns).astype(int)]
+        # hw = int((meas_range[1]-meas_range[0]) / num_posns / 2)
+        n_meas = num_lin_posns**2
+
+        all_slmims = []
+        for y in meas_posns[0]:
+            for x in meas_posns[1]:
+                mask = np.zeros((slmdim, slmdim))
+                mask[y-ksz//2:y+ksz//2, x-ksz//2:x+ksz//2] = 1
+                cur_slmim = strfrm * mask
+                all_slmims.append(cur_slmim.astype('int8'))
+        self.all_slmims = np.array(all_slmims)
+        print('...done.')
+
+        self.run_measurements_shm(current_cube_nims=int(n_meas), plot_whileacq=plot_whileacq)
+        all_fluxes = self.imfluxes(window=True)
+
+        dflux_psf = all_fluxes[0][:] - all_fluxes[0][0]
+        df_im = dflux_psf.reshape((len(meas_posns[0]),len(meas_posns[1])))
+        if showplot:
+            plt.clf()
+            plt.imshow(df_im, extent=[meas_posns[1][0], meas_posns[1][-1], meas_posns[0][-1], meas_posns[0][0]])
+        return df_im
+
+
+
 
 
 

@@ -9,12 +9,12 @@ import FliSdk_V2
 
 
 class credcam:
-    def __init__(self, camera_index=0, camera_id=None, verbose=False, cam_settings=None,
-                 darkpath='./', darkfile=None):
+    def __init__(self, camera_index=0, camera_id=None, verbose=False, cam_settings=None, cropdims=None,
+                 darkpath='./', darkfile=None, buffersize_ims=1000):
 
         if cam_settings is None:
             self.dflt_settings = {'sensitivity': 'low',
-                                  'bias mode': 'on',
+                                  'bias mode': 'off',
                                   'flat mode': 'off',
                                   'badpixel mode': 'on',
                                   'fps': 600,#1e6, # 1e6 Sets to maximum
@@ -61,10 +61,16 @@ class credcam:
         errorval = FliSdk_V2.SetCamera(self.cam_context, camera_list[camera_index])
         FliSdk_V2.SetMode(self.cam_context, FliSdk_V2.Mode.Full)  # Enables grab and config
         errorval = FliSdk_V2.Update(self.cam_context)
+
+        if cropdims is not None:
+            self.send_command('set cropping columns %d-%d' % (cropdims[0], cropdims[1]), verbose=verbose)
+            self.send_command('set cropping rows %d-%d' % (cropdims[2], cropdims[3]), verbose=verbose)
+            self.send_command('set cropping on', verbose=verbose)
+        else:
+            self.send_command('set cropping off', verbose=verbose)
         self.camdims = FliSdk_V2.GetCurrentImageDimension(self.cam_context)
 
-        # TODO properly
-        buffersize_ims = 2000
+        buffersize_ims = buffersize_ims
         FliSdk_V2.SetBufferSizeInImages(self.cam_context, buffersize_ims)
 
         self.loggedims_cube = np.zeros((self.nims_tolog, self.camdims[1], self.camdims[0]), dtype=np.int16)

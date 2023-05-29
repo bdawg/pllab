@@ -64,6 +64,8 @@ class plslm:
     def slmwrite(self, im=None, showplot=False, skip_readycheck=False):
         if im is None:
             im = self.nextim
+        else:
+            self.nextim = im
         im = im + self.slmoffset
         slm_image = im.round().astype('uint8').ravel()
         errorval = self.slmobj.Write_image(self.board_number, slm_image.ctypes.data_as(POINTER(c_ubyte)),

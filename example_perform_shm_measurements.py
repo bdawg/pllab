@@ -13,7 +13,7 @@ lutfile = 'C:\\Program Files\\Meadowlark Optics\\Blink OverDrive Plus\\LUT Files
 slmims_filename = 'slmcube_varyingstripes_0-60_10frm_01.npz'
 slmims_filename = 'slmcube_alternatingstripes_0-60_10frm_01.npz'
 
-cube_nims = 100#0 # Max number of frames in a cube - cannot be changed without restarting (is used to allocate shm)
+cube_nims = 1000 # Max number of frames in a cube - cannot be changed without restarting (is used to allocate shm)
 camstosave = ['psf','pl'] # camera_index will be assigned in this order
 winparams=None # Unused in shm mode cameras (except utility functions like plot_influxes() )
 cam_settings = None # Currently unused in shm mode cameras, TODO
@@ -38,8 +38,11 @@ winparams_fluxsum = [[257, 340, 42],
 pllab.plot_imfluxes(window=True, winparams=winparams_fluxsum)
 
 
-# #### Make a new set of SLM images, ramping amplitude of sine pattern, and measure them
-# pllab.makestripecube(n_slmims=100, ampl_range=(0,127), type='sine', savefile='slmims_testout.npz',
-#                      set_as_current=True)
-# all_imdata = pllab.run_measurements_shm(return_data=True, current_cube_nims=100)
-# pllab.plot_imfluxes(window=True, winparams=winparams_fluxsum)
+#### Make a new set of SLM images, ramping amplitude of sine pattern, and measure them
+pllab.makestripecube(n_slmims=100, ampl_range=(0,127), type='sine', savefile='slmims_testout.npz',
+                     set_as_current=True)
+all_imdata = pllab.run_measurements_shm(return_data=True, current_cube_nims=100, plot_final=True)
+pllab.plot_imfluxes(window=True, winparams=winparams_fluxsum)
+
+
+

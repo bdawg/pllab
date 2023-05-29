@@ -26,15 +26,28 @@ class plcam_camprocess():
         self.camdims = [self.cam_commsl[3], self.cam_commsl[4]]
         # self.cam_imshm = np.ndarray((self.cube_nims, self.camdims[1], self.camdims[0]), dtype=np.int16,
         #                             buffer=cam_imshm_obj.buf)
+        if self.cam_commsl[11] is not None:
+            self.cropdims = [self.cam_commsl[11], self.cam_commsl[12], self.cam_commsl[13],self.cam_commsl[14]]
+        else:
+            self.cropdims = None
 
         # Set up camera
-        self.cam = credcam(camera_id=camid, verbose=verbose, cam_settings=cam_settings)
+        self.cam = credcam(camera_id=camid, verbose=verbose, cam_settings=cam_settings, cropdims=self.cropdims,
+                           buffersize_ims=self.cube_nims)
         if trigger_mode == 'external':
             self.cam.external_trigger(enabled=True, syncdelay=cam_syncdelay_ms, verbose=verbose)
             self.cam.reset_buffer()
         else:
             print('camprocess ' + self.camid + ': Error: only external trigger is supported so far for SHM mode...')
             return
+
+        # ##### DEBUG #####
+        # print(' ')
+        # print('Debug from plcam_camprocess')
+        # print('Camera ' + camid)
+        # print([self.cam_commsl[2], self.cam_commsl[3], self.cam_commsl[4],
+        #        self.cam_commsl[5], self.cam_commsl[10]])
+        # #####
 
         if verbose:
             print('camprocess ' + self.camid + ': setup complete')
@@ -79,7 +92,8 @@ class plcam_camprocess():
                     if verbose:
                         print('camprocess ' + self.camid + ': Acquired image %d of %d\n' %
                           (self.cam.check_nims_buffer(), cur_cube_nims))
-                    time.sleep(0.5)
+                    if cur_cube_nims > 1:
+                        time.sleep(0.5)
                     # TODO - Implement timeout
                 cam_imshm = np.ndarray((self.cube_nims, self.camdims[1], self.camdims[0]), dtype=np.int16,
                                     buffer=self.cam_imshm_obj.buf)
