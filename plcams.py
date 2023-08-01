@@ -70,6 +70,12 @@ class credcam:
             self.send_command('set cropping off', verbose=verbose)
         self.camdims = FliSdk_V2.GetCurrentImageDimension(self.cam_context)
 
+        # print('plcams.py camdims:')
+        # print(self.camdims)
+        # print('plcams.py cropdims:')
+        # print(cropdims)
+
+
         buffersize_ims = buffersize_ims
         FliSdk_V2.SetBufferSizeInImages(self.cam_context, buffersize_ims)
 

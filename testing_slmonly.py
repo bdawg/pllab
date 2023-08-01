@@ -22,10 +22,11 @@ lutfile = 'C:\\Program Files\\Meadowlark Optics\\Blink OverDrive Plus\\LUT Files
 darkfiledir = '../pllab_data/darks/'
 darkfile1 = None #'dark_psfcam_50us'
 
-slmims_filename = 'LP_Mode_Stack_Test4PixelsSuper.npz'
+slmims_filename = 'slmcube_randomstripes_0-60_1000frm_01.npz'
+# slmims_filename = 'ZernikeStackTestFlippedPositioned0topi.npz'
 
 verbose = True
-nloops = 3
+nloops = 1
 
 
 cam_syncdelay_ms = 12
@@ -37,8 +38,8 @@ if not 'slm' in locals():
 
 
 slmimdataf = np.load(datadir + slmims_filename)
-# slmims = slmimdataf['all_slmims']
-slmims=slmimdataf['arr_0']
+slmims = slmimdataf['all_slmims']
+# slmims=slmimdataf['arr']
 if type(slmims[0, 0, 0]) is not np.int8:
     print('Error: input SLM cube not int8')
 # all_slmim_params = slmimdataf['all_slmim_params']
@@ -49,27 +50,26 @@ n_slmims = slmims.shape[0]
 # croppeddark = cam.dark[win[0]:win[1], win[2]:win[3]]
 total_nims = nloops * n_slmims
 
-# slm.slmwrite(slmims[0, :, :], showplot=False)
-time.sleep(0.1)
+
+
 
 
 
 print('Starting data acquisition')
 startime = time.time()
 
-# count=0
-# for k in range(nloops):
-#     for l in range(n_slmims):
-#         slmim = slmims[l, :, :]
-#         slm.slmwrite(slmim, showplot=False, skip_readycheck=True)
-#         count += 1
-#
-#         goodtimer(wait_time_ms)
-#         print(count)
-#         time.sleep(0.2)
+count=0
+for k in range(nloops):
+    for l in range(n_slmims):
+        slmim = slmims[l, :, :]
+        slm.slmwrite(slmim, showplot=False, skip_readycheck=True)
+        count += 1
+
+        goodtimer(wait_time_ms)
+        print(count)
+        time.sleep(0.2) #0.2
 
 print('Done - elapsed time %.2f seconds' % (time.time() - startime))
 
-
-# slmims = np.array(slmims*1.5).astype('uint8')
+slm.slmwrite(slmims[0, :, :], showplot=False)
 

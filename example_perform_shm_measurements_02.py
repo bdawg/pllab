@@ -60,10 +60,11 @@ pllab.show_ims()
 
 # Do a scan of SLM modulation position vs flux
 #
-pllab.slmposnscan_coarse(num_lin_posns=32)#, plot_whileacq=True)
+# scanmap = pllab.slmposnscan(num_lin_posns=32)#, plot_whileacq=True) #32
 
-num_lin_posns=32 #64
-meas_range = [350, 750, 175, 575]
-scanmap = pllab.slmposnscan_coarse(num_lin_posns=num_lin_posns, meas_range=meas_range)
-np.savez('slmscanmap_20230519b.npz', scanmap=scanmap, meas_range=meas_range,
-         num_lin_posns=num_lin_posns)
+# num_lin_posns=28 #64
+# meas_range = [350, 750, 175, 575]
+# meas_range = None
+# scanmap = pllab.slmposnscan(num_lin_posns=num_lin_posns, meas_range=meas_range)
+# np.savez('slmscanmap_20230601a.npz', scanmap=scanmap, meas_range=meas_range,
+#          num_lin_posns=num_lin_posns)

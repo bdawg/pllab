@@ -5,6 +5,7 @@ Class to take sets of measurements with PL testbed
 import matplotlib.pyplot as plt
 import numpy as np
 import time
+import os
 from plslm import plslm
 from plcams import credcam
 from multiprocessing import shared_memory
@@ -32,6 +33,7 @@ class pllab:
         self.cropdims = cropdims
         self.all_imcubes = []
         self.darkframes = []
+        self.slmims_filename = ''
 
         # Define camera ids for each camera
         camids = {'pl': 'c86ca65',
@@ -103,7 +105,10 @@ class pllab:
                 self.wins.append(win)
 
         if self.darkfile is not None:
-            self.load_darkfile()
+            try:
+                self.load_darks()
+            except:
+                print('Warning: could not load darkfile.')
 
 
     def setup_shm_cameras(self, camid, camindex=0, cur_cam_settings=None): #, darkfile=None):
@@ -198,16 +203,35 @@ class pllab:
             shared_memory.SharedMemory(name=shmname).unlink()
 
 
-    def load_slmims(self, slmims_filename, slmims_path='', slmim_array_name='all_slmims'):
-        slmimdataf = np.load(slmims_path + slmims_filename)
+    def load_slmims(self, slmims_filename, slmims_path='', slmim_array_name='all_slmims',
+                    slmim_param_name='all_slmim_params', insert_as_subimage=False, slmloc=None):
+        print('Loading SLM data...')
+        slmimdataf = np.load(slmims_path + slmims_filename, allow_pickle=True)
         slmims = slmimdataf[slmim_array_name]
         if type(slmims[0,0,0]) is not np.uint8:
             print('Warning: input SLM cube not uint8, converting.')
             slmims = slmims.astype('uint8')
             # return
-        self.all_slmims = slmims
+
+        if insert_as_subimage:
+            # slmloc=np.array([slm_centre[0], slm_centre[1], slm_rad])
+            if slmloc is None:
+                slmloc = slmimdataf['slmloc']
+            slm_centre = slmloc[:2]
+            print('Using SLM centre: ')
+            print(slm_centre)
+            slm_rad = slmloc[2]
+            num_samps = slmims.shape[0]
+            full_slmims = np.ones((num_samps, self.slm.slmdims[0], self.slm.slmdims[1]), dtype='uint8') * 127
+            full_slmims[:, slm_centre[0] - slm_rad:slm_centre[0] + slm_rad, \
+                slm_centre[1] - slm_rad:slm_centre[1] + slm_rad] = slmims
+            self.all_slmims = full_slmims
+        else:
+            self.all_slmims = slmims
+
+
         try:
-            self.all_slmim_params = slmimdataf['all_slmim_params']
+            self.all_slmim_params = slmimdataf[slmim_param_name]
         except:
             print('Warning: no slmim params array found')
             self.all_slmim_params = None
@@ -234,7 +258,7 @@ class pllab:
         # Set command to start acquiring
         for sl in self.all_cam_commsl:
             sl[10] = 1
-        time.sleep(0.1) # Allow for polling rate of camprocesses to sl
+        time.sleep(0.5) # Allow for polling rate of camprocesses to sl #TODO was 0.1
 
         # Take data
         starttime = time.time()
@@ -290,9 +314,9 @@ class pllab:
 
         for sl in self.all_cam_commsl:
             sl[10] = 1
-        time.sleep(0.1) # Allow for polling rate of camprocesses to sl
+        time.sleep(0.5) # Allow for polling rate of camprocesses to sl #TODO was 0.1
 
-        slmim = np.zeros((self.slm.slmdims[0], self.slm.slmdims[1]), dtype='int8')
+        slmim = np.zeros((self.slm.slmdims[0], self.slm.slmdims[1]), dtype='uint8')
         starttime = time.time()
         count = 0
         for k in range(cube_nims):
@@ -323,9 +347,12 @@ class pllab:
             self.darkframes.append((darkframe))
 
         if save:
-            print('Saving to ' + self.darkpath + darkfile)
-            np.savez(self.darkpath+darkfile+'.npz', darkframes=self.darkframes,
-                     datestr=datetime.now().isoformat())
+            if not os.path.exists(self.darkpath + darkfile):
+                print('Saving to ' + self.darkpath + darkfile)
+                np.savez(self.darkpath+darkfile, darkframes=self.darkframes,
+                         datestr=datetime.now().isoformat())
+            else:
+                print('Error: file already exist, dark NOT saved.')
 
 
     def load_darks(self, darkfile=None):
@@ -482,7 +509,7 @@ class pllab:
     def makestripecube(self, n_slmims=10, period=50, ampl_range=(0, 60), type='square', savefile='',
                        set_as_current=True, showplot=False, return_cube=False):
         amplvals = np.linspace(ampl_range[0], ampl_range[1], n_slmims)
-        slmim_dtype = 'int8'
+        slmim_dtype = 'uint8'
         all_slmims = np.zeros((n_slmims, self.slm.slmdims[0], self.slm.slmdims[1]), dtype=slmim_dtype)
         all_slmim_params = np.zeros((n_slmims, 2))
         for k in range(n_slmims):
@@ -507,13 +534,18 @@ class pllab:
             return all_slmims
 
 
-    def savedata(self, filename, cam_subset=None, save_format='npz'):
+    def savedata(self, filename, cam_subset=None, savedir=None):
+        if os.path.exists(self.datadir+filename):
+            print('Error: file already exists, data NOT saved')
+            return
         if cam_subset is None:
             cam_subset = self.all_cam_indexes
+        if savedir is None:
+            savedir = self.datadir
         savesubstr = ''
         for ind in cam_subset:
             savesubstr = savesubstr + 'imcube_cam%d=self.all_imcubes[%d], ' % (ind, ind)
-        savestr = 'np.savez(self.datadir+filename, ' + savesubstr + \
+        savestr = 'np.savez(savedir+filename, ' + savesubstr + \
                   'all_slmim_params=self.all_slmim_params, slmims_filename=self.slmims_filename, ' + \
                   'darkframes=self.darkframes, darkfile=self.darkfile)'
         print('Saving data to ' + filename)
@@ -534,8 +566,8 @@ class pllab:
         plt.pause(0.001)
 
 
-    def slmposnscan_coarse(self, num_lin_posns=32, ksz=32, meas_range=None, period=10, ampl=100, showplot=True,
-                           plot_whileacq=False):
+    def slmposnscan(self, num_lin_posns=32, ksz=32, meas_range=None, period=10, ampl=100, showplot=True,
+                    plot_whileacq=False, circle_centre=None):
 
         print('Generating SLM patterns...')
         strfrm = self.slm.makestripes(period=period, ampl=ampl, return_im=True)
@@ -549,13 +581,30 @@ class pllab:
         # hw = int((meas_range[1]-meas_range[0]) / num_posns / 2)
         n_meas = num_lin_posns**2
 
+        # circle_centre = [600, 400]
+        # meas_range = [0, 100]
+        # num_lin_posns = 10
+        if circle_centre is not None:
+            Y, X = np.mgrid[-slmdim / 2:slmdim / 2, -slmdim / 2:slmdim / 2]
+            # Y, X = np.mgrid[0:slmdim, 0:slmdim]
+            X1 = X - circle_centre[1] + slmdim/2
+            Y1 = Y - circle_centre[0] + slmdim/2
+            # X1 = X + circle_centre[1]
+            # Y1 = Y + circle_centre[0]
+            R = np.sqrt(X1 ** 2 + Y1 ** 2)
+            meas_posns[1] = [0]
+            n_meas = num_lin_posns
+
         all_slmims = []
         for y in meas_posns[0]:
             for x in meas_posns[1]:
                 mask = np.zeros((slmdim, slmdim))
-                mask[y-ksz//2:y+ksz//2, x-ksz//2:x+ksz//2] = 1
+                if circle_centre is None:
+                    mask[y-ksz//2:y+ksz//2, x-ksz//2:x+ksz//2] = 1
+                else:
+                    mask[R <= y] = 1
                 cur_slmim = strfrm * mask
-                all_slmims.append(cur_slmim.astype('int8'))
+                all_slmims.append(cur_slmim.astype('uint8'))
         self.all_slmims = np.array(all_slmims)
         print('...done.')
 

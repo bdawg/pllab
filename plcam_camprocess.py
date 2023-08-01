@@ -12,6 +12,7 @@ plt.ion()
 class plcam_camprocess():
     def __init__(self, camid, cam_commsl_shmname, cam_imshm_shmname, cam_settings=None, verbose=False,
                  delays=(12,3), trigger_mode='external', poll_time=0.01):
+        delays=(48,3) #TODO - hack
         self.camid = camid
         cam_syncdelay_ms = delays[0]
         extra_delay_ms = delays[1]
@@ -86,6 +87,7 @@ class plcam_camprocess():
 
                 # starttime = time.time()
                 self.cam.reset_buffer()
+                # time.sleep(0.1) #TODO hack
                 print('cur_cube_nims: ')
                 print(cur_cube_nims)
                 while self.cam.check_nims_buffer() < cur_cube_nims:
