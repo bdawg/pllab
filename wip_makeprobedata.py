@@ -1,6 +1,6 @@
 import matplotlib
 # matplotlib.use('TkAgg')
-# import hcipy
+import hcipy
 import matplotlib.pyplot as plt
 import numpy as np
 import time

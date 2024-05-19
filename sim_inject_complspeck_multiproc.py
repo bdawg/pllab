@@ -41,7 +41,6 @@ def makedatafunc(idnum):
     rot_range = [-180, 180]
     phi_range = [0, 100]
 
-    num_data = 2000
     num_data = 1562 # For 64, 8 or 4
     # num_data = 1786  # For 56, 7
     # num_data = 1667  # For 60, 6
@@ -55,7 +54,7 @@ def makedatafunc(idnum):
     # savedir = '/media/data/bnorris/pl_simdata/'
     savedir = '/home/bnorris/Data/PL/simdata/'
 
-    savefilepref = 'siminjout_2ssp_ampl01-1_20230801b-01_%.2d.npz'
+    savefilepref = 'siminjout_2ssp_ampl01-1_20230802a-01_%.2d.npz'
     # savefilepref = 'testout2_%.2d.npz'
 
     print('Starting set no. %d' % idnum)
@@ -70,8 +69,8 @@ def makedatafunc(idnum):
 
 
 if __name__ == '__main__':
-    numfiles = 50 #64
-    workers = 2 #4
+    numfiles = 64
+    workers = 4
 
     idnums = range(numfiles)
     # idnums = range(50,100)

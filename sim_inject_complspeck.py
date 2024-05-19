@@ -44,9 +44,11 @@ class multi_complspeckles:
         # im_c = ampl**2 * np.exp(1j * 2 * np.pi / period * Xr) ###########
         im_c = np.exp(1j * 2 * np.pi / period * Xr)
         pup_im = im_c * self.pupmask
-        # pup_im = pup_im / np.sum(np.abs(pup_im) ** 2) * ampl
-        pup_im = pup_im / np.sum(np.abs(pup_im) ** 2) * ampl**2 #####################
-        puppower_adj = np.sum(np.abs(pup_im) ** 2) / np.sum(self.pupmask)  # Total pupil power, normalised
+
+        # # pup_im = pup_im / np.sum(np.abs(pup_im) ** 2) * ampl
+        # pup_im = pup_im / np.sum(np.abs(pup_im) ** 2) * ampl**2 #####################
+        # puppower_adj = np.sum(np.abs(pup_im) ** 2) / np.sum(self.pupmask)  # Total pupil power, normalised
+        puppower_adj = 0
         return pup_im, puppower_adj
 
 
@@ -79,13 +81,19 @@ class multi_complspeckles:
         psf_raw = np.fft.fftshift(np.fft.fft2(np.fft.fftshift(pup_padded)))
         psf_raw = psf_raw / np.sqrt(psf_raw.shape[0] * psf_raw.shape[1])  # Normalise FT by area
         psf_intens = np.abs(psf_raw) ** 2
-        impower_adj = np.sum(psf_intens) / np.sum(self.pupmask)
+        # impower_adj = np.sum(psf_intens) / np.sum(self.pupmask)
+        impower_adj = np.sum(psf_intens)
 
         if output_cropped:
             cnt = psf_intens.shape[0] // 2
             hw = self.cropsize // 2
             psf_intens = psf_intens[cnt - hw:cnt + hw + 1, cnt - hw:cnt + hw + 1]
             psf_raw = psf_raw[cnt - hw:cnt + hw + 1, cnt - hw:cnt + hw + 1]
+
+        # Instead of relying on FFT normalisation, just set pupil power to equal the PSF power
+        pup_im_pow = np.sum(np.abs(pup_im)**2)
+        pup_im = pup_im / pup_im_pow * impower_adj
+        puppower_adj = np.sum(np.abs(pup_im)**2)
 
         self.pup_im = pup_im
         self.puppower_adj = puppower_adj
@@ -163,7 +171,7 @@ class multi_complspeckles:
         plt.imshow(np.abs(self.pup_im))
         plt.colorbar()
         plt.title('Pupil amplitude')
-        plt.text(0.05, 0.05, 'Total power (adj): %.3f' % (self.puppower_adj*pp_dspscale),
+        plt.text(0.05, 0.05, 'Total power (adj): %.3g' % (self.puppower_adj*pp_dspscale),
                  transform=plt.gca().transAxes, color='white')
         plt.subplot(222)
         plt.imshow(np.angle(self.pup_im), cmap='hsv')
@@ -178,7 +186,7 @@ class multi_complspeckles:
         # plt.imshow(np.sqrt(psf_intens))
         plt.colorbar()
         plt.title('PSF intensity (virt pupil)')
-        plt.text(0.05, 0.05, 'Total power (adj): %.3f' % (self.impower_adj*pp_dspscale),
+        plt.text(0.05, 0.05, 'Total power (adj): %.3g' % (self.impower_adj*pp_dspscale),
                  transform=plt.gca().transAxes, color='white')
         plt.subplot(224)
         plt.imshow(np.angle(psf_raw), cmap='hsv')
@@ -467,7 +475,7 @@ if __name__ == '__main__':
 
     num_data = 4#100#0000
     nspecks = 10
-    showplots = False
+    showplots = True
     make_slmims = False
 
     spk.make_multi_simdata(num_data, nspecks, dc_power_range, cycles_per_pupil_range, ampl1_range, ampl2_range,

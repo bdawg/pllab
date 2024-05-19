@@ -53,7 +53,7 @@ circle_centre = [565,390]
 num_lin_posns = 400 #64
 meas_range = [0, 400, 0, 0]
 scanmap = pllab.slmposnscan(num_lin_posns=num_lin_posns, meas_range=meas_range,
-                            circle_centre=circle_centre, ampl=127)
+                            circle_centre=circle_centre, ampl=255)
 np.savez(datadir+outnamepref+'.npz', scanmap=scanmap, meas_range=meas_range,
          num_lin_posns=num_lin_posns)
 tm = time.time()

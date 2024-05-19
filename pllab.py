@@ -19,7 +19,8 @@ matplotlib.use('TkAgg')
 class pllab:
     def __init__(self, datadir='./', camstosave=('pl'), shm_mode=True, darkfile=None, darkpath='./',
                  delays=(12,3), verbose=False, cam_settings=None, winparams=None, lutfile=None,
-                 camdims=(640,512), cropdims=None, cube_nims=1000, winparams_fluxsum=None):
+                 camdims=(640,512), cropdims=None, cube_nims=1000, winparams_fluxsum=None,
+                 enable_cameras=True):
         self.datadir = datadir
         self.darkfile = darkfile
         self.darkpath = darkpath
@@ -48,52 +49,58 @@ class pllab:
         else:
             self.winparams_fluxsum = winparams_fluxsum
 
-        if shm_mode is False:
-            print('Error: only shared memory mode is currently implemented')
-            return
-            # # Instantiate cameras
-            # self.camobjs = []
-            # for k in range(len(camstosave)):
-            #     camid = camids[camstosave[k]]
-            #     if cam_settings is None:
-            #         cur_cam_settings = None
-            #     else:
-            #         cur_cam_settings = cam_settings[k]
-            #     if darkfiles is None:
-            #         darkfile = None
-            #     else:
-            #         darkfile = darkfiles[k]
-            #     cam = credcam(camera_id=camid, darkfile=darkfile, darkpath=darkpath, verbose=verbose,
-            #                   cam_settings=cur_cam_settings)
-            #     self.camobjs.append(cam)
+        self.enable_cameras = enable_cameras
+        if enable_cameras:
+            if shm_mode is False:
+                print('Error: only shared memory mode is currently implemented')
+                return
+                # # Instantiate cameras
+                # self.camobjs = []
+                # for k in range(len(camstosave)):
+                #     camid = camids[camstosave[k]]
+                #     if cam_settings is None:
+                #         cur_cam_settings = None
+                #     else:
+                #         cur_cam_settings = cam_settings[k]
+                #     if darkfiles is None:
+                #         darkfile = None
+                #     else:
+                #         darkfile = darkfiles[k]
+                #     cam = credcam(camera_id=camid, darkfile=darkfile, darkpath=darkpath, verbose=verbose,
+                #                   cam_settings=cur_cam_settings)
+                #     self.camobjs.append(cam)
+            else:
+                print('Setting up cameras in shared memory mode')
+                camindex = 0
+                self.all_cam_indexes = []
+                self.all_cam_commsl = []
+                self.all_cam_imshm_obj = []
+                self.all_subproc_camproc = []
+                self.all_shmnames = []
+                self.camdims = []
+                for k in range(len(camstosave)):
+                    camid = camids[camstosave[k]]
+                    if cam_settings is None:
+                        cur_cam_settings = None
+                    else:
+                        cur_cam_settings = cam_settings[k]
+
+                    if self.cropdims is not None:
+                        ncols = self.cropdims[camindex][1] - self.cropdims[camindex][0] + 1
+                        nrows = self.cropdims[camindex][3] - self.cropdims[camindex][2] + 1
+                        self.camdims.append([ncols, nrows])
+                    else:
+                        self.camdims.append(camdims)
+
+                    self.setup_shm_cameras(camid, camindex, cur_cam_settings)#, darkfile)
+                    camindex += 1
         else:
-            print('Setting up cameras in shared memory mode')
-            camindex = 0
-            self.all_cam_indexes = []
-            self.all_cam_commsl = []
-            self.all_cam_imshm_obj = []
-            self.all_subproc_camproc = []
-            self.all_shmnames = []
-            self.camdims = []
-            for k in range(len(camstosave)):
-                camid = camids[camstosave[k]]
-                if cam_settings is None:
-                    cur_cam_settings = None
-                else:
-                    cur_cam_settings = cam_settings[k]
+            print('WARNING - CAMERAS DISABLED!')
 
-                if self.cropdims is not None:
-                    ncols = self.cropdims[camindex][1] - self.cropdims[camindex][0] + 1
-                    nrows = self.cropdims[camindex][3] - self.cropdims[camindex][2] + 1
-                    self.camdims.append([ncols, nrows])
-                else:
-                    self.camdims.append(camdims)
 
-                self.setup_shm_cameras(camid, camindex, cur_cam_settings)#, darkfile)
-                camindex += 1
 
         # Instantiate SLM
-        self.slm = plslm(lutfile=lutfile)
+        self.slm = plslm(lutfile=lutfile, slmoffset=0) #### slmoffset
 
         # Set up image windowing (but ideally do this in-camera)
         # imwins contains (x, y, winsize) for each camera
@@ -237,6 +244,29 @@ class pllab:
             self.all_slmim_params = None
         self.slmims_filename = slmims_filename
         print('Loaded SLM image data file '+slmims_path + slmims_filename)
+
+
+    def show_slm_seq(self, waittime=0.1, current_cube_nims=None, showplot=False):
+        n_slmfrms = self.all_slmims.shape[0]
+        if current_cube_nims is not None:
+            cube_nims = current_cube_nims
+        else:
+            cube_nims = self.cube_nims
+        if (cube_nims % n_slmfrms != 0):
+            print('Error: cube_nims must be a multiple of number of input slm frames')
+            return
+        nloops = int(cube_nims / n_slmfrms)
+        starttime = time.time()
+        print('Beginning SLM-show set for %d loops of SLM image data file ' % nloops + self.slmims_filename)
+        count = 0
+        for k in range(nloops):
+            for l in range(n_slmfrms):
+                slmim = self.all_slmims[l,:, :]
+                if count % 100 == 0:
+                    print('Showing frame %d' % count)
+                self.slm.slmwrite(slmim, showplot=showplot, skip_readycheck=True)
+                count += 1
+                self.goodtimer(waittime*1000)
 
 
     def run_measurements_shm(self, return_data=False, current_cube_nims=None, truncate_zeros=True,
@@ -473,9 +503,11 @@ class pllab:
             pass
 
 
-    def imfluxes(self,  window=False, winparams=None):
+    def imfluxes(self,  window=False, winparams=None, showplot=False):
         if winparams is None:
             winparams = self.winparams_fluxsum
+        if showplot:
+            plt.clf()
         wins = []
         for winparam in winparams:
             wsz = winparam[2]
@@ -491,6 +523,11 @@ class pllab:
                 cube = cube[:, wins[k][0]:wins[k][1], wins[k][2]:wins[k][3]]
             cubefluxes = np.sum(cube, axis=(1, 2))
             all_fluxes.append(cubefluxes)
+            if showplot:
+                plt.subplot(1, len(self.all_cam_indexes), k+1)
+                plt.imshow(np.mean(cube,0))
+                plt.colorbar()
+
         return all_fluxes
 
 
@@ -507,7 +544,7 @@ class pllab:
 
 
     def makestripecube(self, n_slmims=10, period=50, ampl_range=(0, 60), type='square', savefile='',
-                       set_as_current=True, showplot=False, return_cube=False):
+                       set_as_current=True, showplot=False, invert=False, return_cube=False):
         amplvals = np.linspace(ampl_range[0], ampl_range[1], n_slmims)
         slmim_dtype = 'uint8'
         all_slmims = np.zeros((n_slmims, self.slm.slmdims[0], self.slm.slmdims[1]), dtype=slmim_dtype)

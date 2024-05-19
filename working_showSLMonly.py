@@ -1,9 +1,10 @@
+import matplotlib
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import numpy as np
 import time
 from plslm import plslm
-import matplotlib
-matplotlib.use('TkAgg')
+
 plt.ion()
 
 lutfile = 'C:\\Program Files\\Meadowlark Optics\\Blink OverDrive Plus\\LUT Files\\slm6658_at1550_75C.LUT'
@@ -37,7 +38,7 @@ for k in range(nloops):
         count += 1
         print(count)
         plt.pause(wait_time)
-# slm.slmwrite(slm_flat, showplot=False, skip_readycheck=True)
+slm.slmwrite(slm_flat, showplot=False, skip_readycheck=True)
 
 print('Done.')
 

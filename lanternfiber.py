@@ -1,5 +1,9 @@
 """
 A class to do useful fiber and photonic lantern things, such as mode finding, coupling, etc.
+
+This class uses
+ofiber https://ofiber.readthedocs.io
+polarTransform https://polartransform.readthedocs.io/en/latest/getting-started.html
 """
 import numpy as np
 import ofiber
@@ -439,7 +443,8 @@ class lanternfiber:
                     tick_label=mode_field_numbers[modes_to_plot])
             plt.xlabel('Mode number')
             plt.ylabel('Coupling efficiency')
-            plt.title('Total coupling efficiency: %f' % overlap_int)
+            # plt.title('Total coupling efficiency: %f' % overlap_int)
+            plt.title('Total coupling efficiency: %.2g' % overlap_int)
             plt.ylim((0,ylim))
             plt.tight_layout()
 
