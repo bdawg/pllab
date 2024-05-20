@@ -9,7 +9,15 @@ This contains the continually modified code for the IR PL testbed. Main features
 
 
 ### Important files
-`pllab.py`  Main class for performing experiments, including showing SLM pattens and acquiring frames
-`plcams.py`  Class handles control and acquisition from C-Red 2 cameras, uses FliSdk_V2
-`plcam_camprocess.py`  Class + script to asynchronously acquire images from C-Red 2 cameras, run in its own process (one per camera)
-`plslm.py`  Class to communicate with Meadowlark SLM
+
+| Filename        | Description         |
+| ------------- |-------------|
+| `pllab.py`      | Main class for performing experiments, including showing SLM pattens and acquiring frames |
+| `plcams.py`      | Class handles control and acquisition from C-Red 2 cameras, uses FliSdk_V2|
+| `plcam_camprocess.py` | Class + script to asynchronously acquire images from C-Red 2 cameras, run in its own process (one per camera) |
+|`plslm.py`| Class to communicate with Meadowlark SLM|
+|`example_perform_shm_measurements.py` | Example script showing how to take a measurement set of SLM patterns, plus other useful functions|
+
+See other `example_...` files for examples of other functions
+
+`working_...` files are scripts containing WIP useful data generation and acquisition tasks
