@@ -111,12 +111,59 @@ def test_unit_conversions():
     print(USB3101FS.bits_to_volts(0), USB3101FS.bits_to_volts(2**16-1))
     np.testing.assert_allclose(USB3101FS.bits_to_volts(0), -10.)
     np.testing.assert_allclose(USB3101FS.bits_to_volts(2**16-1), 10.)
-    assert (USB3101FS.bits_to_volts(2**15 - 1) <  0.)
-    assert (USB3101FS.bits_to_volts(2**15    ) >  0.)
+    assert (USB3101FS.bits_to_volts(2**15 - 1) < 0.)
+    assert (USB3101FS.bits_to_volts(2**15    ) > 0.)
     print(USB3101FS.volts_to_bits(-10), USB3101FS.volts_to_bits(0), USB3101FS.volts_to_bits(10))
     np.testing.assert_allclose(USB3101FS.volts_to_bits(-10), 0)
     np.testing.assert_allclose(USB3101FS.volts_to_bits(0), 2**15 - 1) # expected behaviour is to floor
     np.testing.assert_allclose(USB3101FS.volts_to_bits(10), 2**16-1)
+
+
+class PlanetSimulator:
+    """
+    A planet simulator for a single point source planet. 
+    This class drives the USB-3101FS to simulate the planet. 
+    It can only move it slowly. It can drive the tilt, tip and attenuator channels.
+    It also handles units so that the user of this class doesn't need to send voltages to the USB-3101FS.
+    """
+    def __init__(self) -> None:
+        self._setup_connections()
+
+        # describe the mapping between the outputs of the USB and the physical device
+        self.channel_map = {
+            "tilt" : 0,
+            "tip" : 1,
+            "attenuator" : 2,
+        }
+
+    def _setup_connections(self):
+        self.analogue_out = USB3101FS.detect_auto()
+        
+    def set_position(self, position):
+        """
+        Set the position of the planet
+
+        Parameters
+        ----------
+        position : array
+            [tilt, tip, ] in normalised units, where -1 is the minimum and 1 is the maximum
+        """
+        # use the array to set analogue outputs
+
+
+    def set_contrast(self, contrast):
+        """
+        Set the contrast of the planet, relative to the main source.
+
+        Parameters
+        ----------
+        contrast : float
+            The contrast of the planet, where 0 is the minimum and 1 is the maximum
+        """
+        
+
+
+
 
 
 if __name__ == "__main__":
@@ -127,6 +174,6 @@ if __name__ == "__main__":
     for i in np.linspace(*dev.VOLTAGE_RANGE, 21):
         print(f"setting voltage {i}V")
         dev.set_output(0, i, USB3101FS.Units.VOLTS)
-        time.sleep(1)
+        time.sleep(0.01)
 
     test_unit_conversions()
