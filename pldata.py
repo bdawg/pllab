@@ -229,7 +229,7 @@ class PLdata:
                 ps = self.core_posns[:,wg]
                 ps = np.round(ps).astype('int')
                 subim = im[ps[0] - hw:ps[0] + hw + 1, ps[1] - callaser_posn:ps[1] + (spec_length - callaser_posn)]
-                self.all_subims[k, wg, :, :] = subim
+                self.all_s=ubims[k, wg, :, :] = subim
                 self.all_fluxes[k, wg, :] = np.sum(subim, 0)
                 self.all_vprofs[k, wg, :] = np.sum(subim, 1)
                 if show_indiv_plots:
