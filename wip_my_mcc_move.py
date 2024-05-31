@@ -5,11 +5,12 @@ from mcculw.enums import InterfaceType
 from mcculw.enums import ScanOptions, FunctionType, Status
 from mcculw.device_info import DaqDeviceInfo
 
+import numpy as np
 
 class USB3101FS:
 
-    VOLTAGE_RANGE = [-10,10] # pretty sure this is fixed and cant change
-    
+    VOLTAGE_RANGE = [-10.,10.] # pretty sure this is fixed and cant change
+    BIT_DEPTH = 16
     
     class Units(Enum):
         BITS=0
@@ -90,12 +91,34 @@ class USB3101FS:
 
 
     ############### Unit things
-    @staticmethod
-    def bits_to_volts(bit_val):
-        return 
+    @classmethod
+    def bits_to_volts(cls, bit_val):
+        """
+        assumes a bit is an integer in the range 0, 2**BIT_DEPTH - 1
+        """
+        return (cls.VOLTAGE_RANGE[1]-cls.VOLTAGE_RANGE[0])*bit_val/(2**cls.BIT_DEPTH-1) + cls.VOLTAGE_RANGE[0]
+    
+    @classmethod
+    def volts_to_bits(cls, volt_val):
+        return np.floor((2**cls.BIT_DEPTH-1)*(volt_val-cls.VOLTAGE_RANGE[0])/(cls.VOLTAGE_RANGE[1]-cls.VOLTAGE_RANGE[0]))
 
+
+
+
+def test_unit_conversions():
+    print(USB3101FS.bits_to_volts(0), USB3101FS.bits_to_volts(2**16-1))
+    np.testing.assert_allclose(USB3101FS.bits_to_volts(0), -10.)
+    np.testing.assert_allclose(USB3101FS.bits_to_volts(2**16-1), 10.)
+    assert (USB3101FS.bits_to_volts(2**15 - 1) <  0.)
+    assert (USB3101FS.bits_to_volts(2**15    ) >  0.)
+    print(USB3101FS.volts_to_bits(-10), USB3101FS.volts_to_bits(0), USB3101FS.volts_to_bits(10))
+    np.testing.assert_allclose(USB3101FS.volts_to_bits(-10), 0)
+    np.testing.assert_allclose(USB3101FS.volts_to_bits(0), 2**15 - 1) # expected behaviour is to floor
+    np.testing.assert_allclose(USB3101FS.volts_to_bits(10), 2**16-1)
 
 
 if __name__ == "__main__":
     dev = USB3101FS.detect_auto()
     print("connected")
+
+    test_unit_conversions()
