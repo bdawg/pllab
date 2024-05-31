@@ -39,13 +39,15 @@ class USB3101FS:
 
         return USB3101FS(0)
 
-    def set_output(self, channel, value, units=Units.BITS):
+    def set_output(self, channel, value, units = None):
         """
         Slowly sets a value one at a time. For repeated values, instead use set_scan_values.
         Can only set one channel at a time
         """
+        if units == USB3101FS.Units.VOLTS:
+            value = self.volts_to_bits(value)
 
-        ul.a_out(self.board_num, channel, self.ao_range, value)
+        ul.a_out(self.board_num, channel, self.ao_range, int(value))
         
     
     def set_scan_values(self,):
@@ -118,7 +120,13 @@ def test_unit_conversions():
 
 
 if __name__ == "__main__":
+    import time
     dev = USB3101FS.detect_auto()
     print("connected")
+
+    for i in np.linspace(*dev.VOLTAGE_RANGE, 21):
+        print(f"setting voltage {i}V")
+        dev.set_output(0, i, USB3101FS.Units.VOLTS)
+        time.sleep(1)
 
     test_unit_conversions()
