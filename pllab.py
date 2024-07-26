@@ -14,18 +14,26 @@ from datetime import datetime
 import matplotlib
 matplotlib.use('TkAgg')
 
+# src2_enabled = True
+try:
+    from wip_my_mcc_move import PlanetSimulator
+except ImportError:
+    print('Error: could not load Source 2 movement library')
+    # src2_enabled = False
+
 
 # noinspection PyStringFormat
 class pllab:
     def __init__(self, datadir='./', camstosave=('pl'), shm_mode=True, darkfile=None, darkpath='./',
                  delays=(12,3), verbose=False, cam_settings=None, winparams=None, lutfile=None,
                  camdims=(640,512), cropdims=None, cube_nims=1000, winparams_fluxsum=None,
-                 enable_cameras=True):
+                 enable_cameras=True, src2delay=0):
         self.datadir = datadir
         self.darkfile = darkfile
         self.darkpath = darkpath
         self.cam_syncdelay_ms = delays[0]
         self.extra_delay_ms = delays[1]
+        self.src2delay = src2delay
         self.wins = []
         self.verbose = verbose
         self.shm_mode = shm_mode
@@ -211,10 +219,13 @@ class pllab:
 
 
     def load_slmims(self, slmims_filename, slmims_path='', slmim_array_name='all_slmims',
-                    slmim_param_name='all_slmim_params', insert_as_subimage=False, slmloc=None):
+                    slmim_param_name='all_slmim_params', insert_as_subimage=False, slmloc=None,
+                    only_first_n=None):
         print('Loading SLM data...')
         slmimdataf = np.load(slmims_path + slmims_filename, allow_pickle=True)
         slmims = slmimdataf[slmim_array_name]
+        if only_first_n is not None:
+            slmims = slmims[:only_first_n, :, :]
         if type(slmims[0,0,0]) is not np.uint8:
             print('Warning: input SLM cube not uint8, converting.')
             slmims = slmims.astype('uint8')
@@ -270,7 +281,7 @@ class pllab:
 
 
     def run_measurements_shm(self, return_data=False, current_cube_nims=None, truncate_zeros=True,
-                             plot_final=False, plot_whileacq=False):
+                             plot_final=False, plot_whileacq=False, src2params=None):
         if current_cube_nims is not None:
             cube_nims = current_cube_nims
             for sl in self.all_cam_commsl:
@@ -284,6 +295,13 @@ class pllab:
         nloops = int(cube_nims / n_slmfrms)
         wait_time_ms = self.cam_syncdelay_ms + self.extra_delay_ms
         self.all_imcubes = []
+
+        if src2params is not None:
+            if src2params.shape[1] != n_slmfrms:
+                print('Error: number of src2params must equal number of input slm frames')
+                return
+            ps = PlanetSimulator()
+            print('Source2 movement activated')
 
         # Set command to start acquiring
         for sl in self.all_cam_commsl:
@@ -301,6 +319,11 @@ class pllab:
                     print('Acquiring measurement %d' % count)
                     if plot_whileacq:
                         self.plot_curr(slmim, count)
+                if src2params is not None:
+                    ps.set_position((src2params[0,l], src2params[1,l]))
+                    ps.set_contrast(src2params[2,l])
+                    time.sleep(self.src2delay)
+
                 self.slm.slmwrite(slmim, showplot=False, skip_readycheck=True)
                 count += 1
                 self.goodtimer(wait_time_ms)
@@ -603,11 +626,11 @@ class pllab:
         plt.pause(0.001)
 
 
-    def slmposnscan(self, num_lin_posns=32, ksz=32, meas_range=None, period=10, ampl=100, showplot=True,
-                    plot_whileacq=False, circle_centre=None):
+    def slmposnscan(self, num_lin_posns=32, ksz=32, meas_range=None, period=10, ampl=100, offset=0,
+                    showplot=True, plot_whileacq=False, circle_centre=None):
 
         print('Generating SLM patterns...')
-        strfrm = self.slm.makestripes(period=period, ampl=ampl, return_im=True)
+        strfrm = self.slm.makestripes(period=period, ampl=ampl, offset=offset, return_im=True)
         slmdim = self.slm.slmdims[0]
         if meas_range is None:
             meas_posns = [np.linspace(0, slmdim, num_lin_posns).astype(int),

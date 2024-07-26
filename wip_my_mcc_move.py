@@ -54,6 +54,7 @@ class USB3101FS:
         """
         Sets a series of values
         """
+        raise NotImplementedError()
 
     @staticmethod
     def _config_first_detected_device(board_num, dev_id_list=None):
@@ -120,6 +121,7 @@ class USB3101FS:
 
 
 def test_unit_conversions():
+
     print(USB3101FS.bits_to_volts(0), USB3101FS.bits_to_volts(2**16 - 1))
     np.testing.assert_allclose(USB3101FS.bits_to_volts(0), -10.0)
     np.testing.assert_allclose(USB3101FS.bits_to_volts(2**16 - 1), 10.0)
@@ -155,6 +157,9 @@ class PlanetSimulator:
             "attenuator": 2,
         }
 
+        self.set_position([0, 0])
+        self.set_contrast(0)
+
     def _setup_connections(self):
         self.analogue_out = USB3101FS.detect_auto()
 
@@ -172,16 +177,19 @@ class PlanetSimulator:
 
         print(f"setting voltages {voltages}")
 
-        # self.analogue_out.set_output(self.channel_map["tip"], voltages[0], USB3101FS.Units.VOLTS)
-        # self.analogue_out.set_output(self.channel_map["tilt"], voltages[1], USB3101FS.Units.VOLTS)
+        self.analogue_out.set_output(
+            self.channel_map["tip"], voltages[0], USB3101FS.Units.VOLTS
+        )
+        self.analogue_out.set_output(
+            self.channel_map["tilt"], voltages[1], USB3101FS.Units.VOLTS
+        )
 
     def _position_to_voltage(self, position):
         """
         Converts the position to voltages
         """
-        # taken from lab notes
-        tip_voltage_bounds = [1.0, 7.0]
-        tilt_voltage_bounds = [-5.0, 3.0]
+        tip_voltage_bounds = [-2.0, 7.0]
+        tilt_voltage_bounds = [-5.0, 1.5]
 
         tip_voltage = (tip_voltage_bounds[1] - tip_voltage_bounds[0]) * position[
             0
@@ -207,7 +215,9 @@ class PlanetSimulator:
 
         print(f"setting voltage {voltage}")
 
-        # self.analogue_out.set_output(self.channel_map["attenuator"], voltage, USB3101FS.Units.VOLTS)
+        self.analogue_out.set_output(
+            self.channel_map["attenuator"], voltage, USB3101FS.Units.VOLTS
+        )
 
     def _contrast_to_voltage(self, contrast):
         """
@@ -236,6 +246,29 @@ if __name__ == "__main__":
 
     ps = PlanetSimulator()
 
-    ps.set_position([0, 0])
-    ps.set_position([-1, 1])
-    ps.set_position([1, -1])
+    ps.set_position([0, 0.])
+    ps.set_contrast(0.3)
+    exit()
+
+    contrasts = np.linspace(0, 1, 21)
+
+    contrasts = np.concatenate([contrasts, contrasts[::-1]])
+    for contrast in contrasts:
+        ps.set_contrast(contrast)
+        time.sleep(0.1)
+
+    ps.set_contrast(0.0)
+
+    # move tips
+    tip_vals = np.linspace(-1, 1, 21)
+    for tip in tip_vals:
+        ps.set_position([tip, 0])
+        time.sleep(0.1)
+
+    # move tilts
+    tilt_vals = np.linspace(-1, 1, 21)
+    for tilt in tilt_vals:
+        ps.set_position([0, tilt])
+        time.sleep(0.1)
+
+    ps.set_position([1, 0])

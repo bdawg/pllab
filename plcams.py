@@ -17,7 +17,7 @@ class credcam:
                                   'bias mode': 'off',
                                   'flat mode': 'off',
                                   'badpixel mode': 'on',
-                                  'fps': 600,#1e6, # 1e6 Sets to maximum
+                                  'fps': 500,#1e6, # 1e6 Sets to maximum
                                   'tint': 0.00005 # 1 Sets to maximum # 0.0002
                                   }
         else:

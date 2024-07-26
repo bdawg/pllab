@@ -3,25 +3,36 @@ import matplotlib.pyplot as plt
 from astropy.io import fits
 plt.ion()
 
-ddir = '/Users/bnorris/DontBackup/PL/202306/'
-file = 'pllabdata_20230617e_superK_slmcube_20230505_seeing_0.4-10_10K_01_file00.npz'
-arrname = 'imcube_cam1'
+ddir = '/Users/bnorris/DontBackup/PL/202406/'
+file = 'pllabdata_20240606_randsrc2_seeing-rep10_01_slmcube_20240605_seeing_0.4-10-scl0.5_rand-flatn10_10K_01_file00.npz'
 
-# file ='slmcube_20230505_seeing_0.4-10_10K_01_file00.npz'
-# arrname = 'all_slmims'
+# ddir = 'C:/Data/'
+# file = 'pllabdata_20240605_singlepsf_01_slmcube_20240605_seeing_0.4-10-scl0.5_rand_10K_01_file00.npz'
 
-ddir = '/Volumes/bnorris/Data/PL/202306-seeingdata/'
-file = 'pllabdata_20230617a_laser_slmcube_20230505_seeing_0.4-10_10K_01_file09.npz'
+arrnames = ['imcube_cam0', 'imcube_cam1']
+arrinds = [0, 1]
+
+first_n = None
+first_n = 1000
 
 outdir = ddir
-outdir = './'
 
-npf = np.load(ddir+file)
-data = npf[arrname]
+npf = np.load(ddir+file, allow_pickle=True)
+for k in range(len(arrnames)):
+    imcube = npf[arrnames[k]]
+    dk = dk = npf['darkframes'][k]
+    imcube = imcube - dk
+    imcube[:,0,:] = 0
+
+    if first_n is not None:
+        imcube = imcube[:first_n,:,:]
+
+    outfilename = file[:-4] + '_cam%d' % k + '.fits'
+    fits.writeto(outdir+outfilename, imcube)
 
 # data.shape
 # plt.figure(1)
 # plt.clf()
 # plt.imshow(data[1000,:,:])
 
-fits.writeto(outdir+'out.fits', data)
+# fits.writeto(outdir+'out.fits', data)

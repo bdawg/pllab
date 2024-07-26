@@ -10,7 +10,7 @@ plt.ion()
 
 
 datapath = '../pllab_data/'
-infilename = 'slmscanmap_20230616a.npz'
+infilename = 'slmscanmap_20240605_02b.npz'
 upsample = 1
 minR = 10
 maxR = 100
@@ -22,7 +22,7 @@ p1 = 100 # 50
 p2 = 30 #20
 
 slmim_infilename = None
-slmim_infilename = 'slmscanmap_20230602f_slmims.npz'
+slmim_infilename = 'slmscanmap_20240605_02_slmims.npz'
 
 npf = np.load(datapath+infilename, allow_pickle=True)
 scanmap = npf['scanmap']
@@ -100,6 +100,8 @@ if circles is not None:
 if scanmap.shape[1] == 1:
     plt.clf()
     plt.plot(meas_posns[0], scanmap)
+    r_show = 170
+    plt.plot([r_show, r_show], [np.min(scanmap), np.max(scanmap)], '--')
 
 if slmim_infilename is not None:
     plt.figure(3)

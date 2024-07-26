@@ -36,13 +36,12 @@ save_slmcube = True
 # savefilename = 'slmcube_20230505_zerns_25modes_0.4_10K_01'
 # savefilename = 'slmcube_20230628_stripes_02' # No '.npz'
 # savefilename = 'slmcube_20230628_complsines-01sp_01'
-savefilename = 'slmcube_20240717_seeing_0.4-10-scl1_rand-flatn10_500K_01'
-# savefilename = 'slmcube_202400708_seeing_0.4-10-scl1_contig-flatn1000_10K_01'
+# savefilename = 'slmcube_20240605_seeing_0.4-10-scl0.25_contig_10K_01'
+savefilename = 'slmcube_20240605_seeing_0.4-10-scl0.5_contig-flatn1000_10K_02'
 # savefilename = 'testing3'
 
 # datadir = './'
 datadir = '../'
-datadir = '../../slmcubes/'
 # datadir = '/home/bnorris/Data/PL/make_probedata/'
 # datadir = '../pllab_data/'
 # datadir = 'C:/Data/'
@@ -51,8 +50,8 @@ datadir = '../../slmcubes/'
 # datadir = '/media/data/bnorris/pllab_202306/'
 datadir2 = datadir
 
-num_samps = 10000
-num_files = 50
+num_samps = 1000
+num_files = 100
 
 enable_zernike = False
 enable_seeing = True
@@ -61,7 +60,7 @@ enable_stripes = False
 
 # If not False, starting from 0 set every n'th frame to flat (for training blocks)
 flat_nth = False
-flat_nth = 10
+flat_nth = 1000
 
 plotprobeims = None
 plotprobeims = [0]
@@ -174,9 +173,9 @@ if enable_seeing:
     speed = 10#5 # m/s
     angle = np.pi/4 # radians
     timespan = 100 # seconds
-    seeing_global_scaling = 1 #1
+    seeing_global_scaling = 0.5 #1
 
-    reset_each_frame = True #True # No wind, just a new random phase screen each time
+    reset_each_frame = False # No wind, just a new random phase screen each time
 
     num_timesteps = num_samps
     tvals = np.linspace(0, timespan, num_timesteps)
@@ -226,8 +225,8 @@ for fnum in range(num_files):
             else:
                 atmlayer.reset(make_independent_realization=True)
             wf = atmlayer.phase_for(wavelength).reshape(npix, npix) * seeing_global_scaling
-            if k % flat_nth == 0:
-                wf = np.zeros((npix, npix), dtype='float32')
+            # if k % flat_nth == 0:
+            #     wf = np.zeros((npix, npix), dtype='float32')
             wfcube_seeing[k, :, :] = wf
         eltime = time.time()-stime
         print('Seeing generated in %.1f minutes' % (eltime/60))
@@ -397,7 +396,7 @@ for fnum in range(num_files):
 
 
 plt.figure(1)
-nplot = 6 #100#00
+nplot = 22 #100#00
 
 # #### Test with SLM
 # if not 'slm' in locals():
