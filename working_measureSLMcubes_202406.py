@@ -21,7 +21,7 @@ lutfile = 'C:\\Program Files\\Meadowlark Optics\\Blink OverDrive Plus\\LUT Files
 
 darkfile = None
 # darkfile = 'darks_20240601_laser_1.npz'
-darkfile = 'darks_20240708_superK_1.npz' #'darks_20240605_superK_1.npz'
+darkfile = 'darks_20240822_superK_1.npz' #'darks_20240605_superK_1.npz'
 
 
 # Choose cube of SLM measurements to perform measurements with
@@ -65,9 +65,9 @@ cropdims = [[224, 511, 104, 391], # PSF cam, covers out to 16-pixel-period diffr
 # Offset X,Y, Width, Height: 224, 108, 288, 288 =
 # Offset X,Y, Width, Height: 192, 68, 192, 160 =
 
-savefile_prefix = 'pllabdata_20240717_scansrc2_01'
+# savefile_prefix = 'pllabdata_20240822_scansrc2_01'
 # savefile_prefix = 'pllabdata_20240603_randsrc2_02'
-savefilename = savefile_prefix + '_' + splitext(slmims_filename)[0] + '.npz'
+# savefilename = savefile_prefix + '_' + splitext(slmims_filename)[0] + '.npz'
 
 #### Instantiate pllab. This will handle spawning the processes containing plcam instances
 pllab = pllab(datadir=datadir, camstosave=camstosave, lutfile=lutfile, winparams=winparams,
@@ -113,11 +113,14 @@ yrange = [-0.1, 0.3]
 # #Updated 20240717:
 # xrange = [-0.38, 0.02]
 # yrange = [-0.1, 0.3]
+#Updated 20240822:
+xrange = [-0.25, 0.15]
+yrange = [0, 0.4]
 
 # contr_range = [0.3, 1]
 nsteps = 30**2
 # nreps = 1
-savefile_prefix = 'pllabdata_20240717_scansrc2_07'
+savefile_prefix = 'pllabdata_20240822_scansrc2_03'
 savefilename = savefile_prefix + '_' + splitext(slmims_filename)[0] + '.npz'
 
 # X,Y scan

@@ -10,8 +10,8 @@ datapath = 'C:/Data/'
 infilename = 'pllabdata_20240605_scansrc2_02_slmcube_20230612_flat127_01.npz'
 src2params_filename = 'pllabdata_20240605_scansrc2_02_src2params.npz' #08
 
-infilename = 'pllabdata_20240717_scansrc2_07_slmcube_20230612_flat127_01.npz'
-src2params_filename = 'pllabdata_20240717_scansrc2_07_src2params.npz'
+infilename = 'pllabdata_20240822_scansrc2_03_slmcube_20230612_flat127_01.npz'
+src2params_filename = 'pllabdata_20240822_scansrc2_03_src2params.npz'
 
 npf = np.load(datapath + src2params_filename, allow_pickle=True)
 xposns = npf['xposns']
