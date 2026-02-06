@@ -11,6 +11,7 @@ plt.ion()
 
 datapath = '../pllab_data/'
 infilename = 'slmscanmap_20240605_02b.npz'
+# infilename = 'slmscanmap_20240603_02a.npz'
 upsample = 1
 minR = 10
 maxR = 100

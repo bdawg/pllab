@@ -7,16 +7,24 @@ This contains the continually modified code for the IR PL testbed. Main features
 - Various test and calibration tasks, including determining beam position on SLM, ...
 - Basic plotting and analysis tools
 
+<br>
+
+### 'Essentials' example script and documentation
+**[Click here for a description of core measurement procedure and file formats.](README_DataAcqAndFormats.md)**  
+These are properly demonstrated in the file `example_perform_lab_measurements_essential.py`.
+
+<br>
 
 ### Important files
 
-| Filename        | Description         |
-| ------------- |-------------|
-| `pllab.py`      | Main class for performing experiments, including showing SLM pattens and acquiring frames |
-| `plcams.py`      | Class handles control and acquisition from C-Red 2 cameras, uses FliSdk_V2|
-| `plcam_camprocess.py` | Class + script to asynchronously acquire images from C-Red 2 cameras, run in its own process (one per camera) |
-|`plslm.py`| Class to communicate with Meadowlark SLM|
-|`example_perform_shm_measurements.py` | Example script showing how to take a measurement set of SLM patterns, plus other useful functions|
+| Filename        | Description                                                                                                              |
+| ------------- |--------------------------------------------------------------------------------------------------------------------------|
+| `pllab.py`      | Main class for performing experiments, including showing SLM pattens and acquiring frames                                |
+| `plcams.py`      | Class handles control and acquisition from C-Red 2 cameras, uses FliSdk_V2                                               |
+| `plcam_camprocess.py` | Class + script to asynchronously acquire images from C-Red 2 cameras, run in its own process (one per camera)            |
+|`plslm.py`| Class to communicate with Meadowlark SLM                                                                                 |
+|`example_perform_shm_measurements.py` | Example script showing how to take a measurement set using only SLM patterns, plus other useful functions                |
+|`example_perform_lab_measurements_essential.py` | Example script showing how to take a a full measurement set with SLM patterns and source2, boiled down to the essentials |
 
 See other `example_...` files for examples of other functions
 

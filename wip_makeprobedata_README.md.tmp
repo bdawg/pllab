@@ -1,0 +1,114 @@
+# wip_makeprobedata.py README
+
+This script generates SLM phase-screen cubes ("probe data") and saves them as
+NumPy .npz files. It supports combinations of turbulence (seeing), Zernike
+aberrations, stripe probes, and complex sine probes, then encodes the result
+into 8-bit SLM images.
+
+## What it does
+
+- Builds a circular pupil grid for the active SLM region.
+- Generates one or more wavefront cubes (seeing, Zernike, stripes, complex sine).
+- Adds enabled components together to form a total wavefront cube.
+- Encodes wavefront phase (radians) into SLM 8-bit values.
+- Writes output .npz files containing the SLM cube and metadata.
+
+## Key settings (top of file)
+
+### SLM geometry and encoding
+- `slm_centre`: [row, col] center of active region (pixels).
+- `slm_rad`: radius of active region (pixels). `npix = 2 * slm_rad`.
+- `slm_dim`: full SLM dimension (pixels), used for optional full-frame SLM.
+- `slmrange`: phase range mapped into 8-bit SLM codes (default `4*pi`).
+- `rad2slm(rad_im, slmrange)`: converts phase in radians to uint8 in [0, 255].
+
+### Output control
+- `save_slmcube`: enable/disable saving the .npz files.
+- `savefilename`: base filename for output.
+- `datadir`: output directory; `datadir2` used for optional PSF/WF saves.
+- `num_samps`: number of frames per file (cube depth).
+- `num_files`: number of files to write (file index appended if >= 1).
+
+### Which probe sources are enabled
+- `enable_zernike`: include Zernike aberrations (phase in radians).
+- `enable_seeing`: include atmospheric seeing phase screens.
+- `enable_stripes`: include stripe/sine-squared probe patterns.
+- `enable_complexsine`: include complex sine probes encoded via SLM model.
+
+### Other behavior
+- `flat_nth`: if integer N, every Nth seeing frame is set to flat (zeros).
+- `smoothcoeffs`: if not None, smooth complex-sine coefficients over time.
+- `plotprobeims`: indices to plot probe images (for complex sine).
+- `store_complexsine_psfswfs`: save extra PSF/pupil arrays for complex sine.
+
+## Source-specific settings
+
+### Zernike (`enable_zernike`)
+- `num_modes`: number of Zernike modes (piston excluded).
+- `coefflim_1stmode`, `coefflim_lastmode`: coefficient limits (radians).
+- Coefficients are linearly ramped from `coefflim_1stmode` to `coefflim_lastmode`.
+- Output wavefront cube is `wfcube_zern` (float32, radians).
+
+### Seeing (`enable_seeing`)
+- `fried_parameter`: Fried parameter r0 (meters) at 500 nm.
+- `outer_scale`: turbulence outer scale L0 (meters).
+- `speed`: wind speed (m/s).
+- `angle`: wind direction (radians).
+- `timespan`: simulated time span (seconds).
+- `seeing_global_scaling`: scales final phase screen.
+- `reset_each_frame`: if True, new independent screen each frame.
+- Output wavefront cube is `wfcube_seeing` (float32, radians).
+
+### Stripes (`enable_stripes`)
+- `paramlims_lo`, `paramlims_hi`: per-parameter limits:
+  `[period, ampl, phase, angle]`.
+- Uses `plprobepatterns.plprobe().makestripes(...)`.
+- Output wavefront cube is `wfcube_stripes` (float32, radians).
+
+### Complex sine (`enable_complexsine`)
+- `dc_power`: DC component power for pupil amplitude.
+- `num_specks`: number of sine speckles per frame.
+- `paramlims_lo`, `paramlims_hi`: per-parameter limits:
+  `[period, ampl1_intens, angle, ampl2_intens, ...]`.
+- `twosided`: if True, adds a second sine component.
+- `ampl_normpk`, `ampl_normconst`: pupil amplitude normalization controls.
+- `pix_per_super`, `phys_slm_rad`, `add_one`: SLM encoding settings.
+- Output wavefront cube is `wfcube_complsine` (float32, but note it is
+  already in encoded SLM units for this mode).
+
+## Output files
+
+### Main output (.npz)
+Saved to `datadir` with filename:
+- If `num_files >= 1`: `{savefilename}_fileXX.npz` (zero-padded index).
+- Else: `{savefilename}.npz`.
+
+Contents:
+- `all_slmims`: uint8 array of shape `(num_samps, npix, npix)`.
+  Encoded SLM frames, ready to load into the active SLM region.
+- `all_slmim_params`: dict of parameters describing how the cube was built.
+  Keys depend on enabled sources (examples below).
+- `slmloc`: array `[slm_centre_row, slm_centre_col, slm_rad]`.
+
+`all_slmim_params` keys by source:
+- Zernike: `coeffs`, `num_modes`, `coefflim_1stmode`, `coefflim_lastmode`.
+- Seeing: `r0`, `L0`, `windspeed`, `windangle`, `timespan`,
+  `seeing_global_scaling`, `reset_each_frame`.
+- Stripes: no extra params beyond `coeffs` and limits if added.
+- Complex sine: `coeffs`, `paramlims_lo`, `paramlims_hi`, `dc_ampl`.
+
+### Optional complex sine PSF/WF output (_PSFWFs .npz)
+Saved to `datadir2` when `store_complexsine_psfswfs` is True, using filename:
+`{savefilename}_PSFWFs_fileXX.npz`.
+
+Contents:
+- `complexsine_psfs`: list of complex PSFs (cropped).
+- `complexsine_pupamp`: list of pupil amplitudes.
+- `complexsine_pupphase`: list of pupil phases.
+
+## Notes
+
+- The active SLM region is a circular pupil with radius `slm_rad` in a
+  `npix x npix` grid; outside pixels are masked during some generation steps.
+- When multiple sources are enabled, the final wavefront is the sum of their
+  phase screens before encoding to 8-bit SLM values.

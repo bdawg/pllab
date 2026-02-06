@@ -1,0 +1,187 @@
+# SLM Probe Data Generator
+
+This script generates synthetic wavefront data for Spatial Light Modulator (SLM) control in adaptive optics applications. It creates phase patterns that can simulate various atmospheric and optical aberrations for training machine learning models or testing control algorithms.
+
+## Overview
+
+The script generates phase screen cubes that can be loaded onto an SLM to simulate various optical conditions including atmospheric turbulence (seeing), Zernike aberrations, stripe patterns, and complex sinusoidal patterns.
+
+## Key Settings
+
+### SLM Configuration
+- **`slm_centre`**: Center position of active SLM region `[x, y]` in pixels (default: `[510, 566]`)
+- **`slm_rad`**: Radius of active SLM region in pixels (default: `170`)
+- **`slm_dim`**: Full SLM dimension in pixels (default: `1024`)
+- **`slmrange`**: Phase range of SLM in radians (default: `4π`)
+
+### Optical System Parameters
+- **`D_tel`**: Telescope diameter in meters (default: `8`)
+- **`wavelength`**: Operating wavelength in meters (default: `1.5e-6` = 1.5 μm)
+
+### Data Generation
+- **`num_samps`**: Number of samples per file (default: `10000`)
+- **`num_files`**: Number of output files to generate (default: `50`)
+- **`savefilename`**: Base name for output files (without `.npz` extension)
+- **`datadir`**: Directory path for saving output files
+
+### Pattern Type Flags
+Enable different types of aberrations by setting these to `True`:
+
+- **`enable_zernike`**: Generate Zernike polynomial aberrations (default: `False`)
+- **`enable_seeing`**: Generate atmospheric turbulence patterns (default: `True`)
+- **`enable_complexsine`**: Generate complex sinusoidal probe patterns (default: `False`)
+- **`enable_stripes`**: Generate stripe patterns (default: `False`)
+
+### Flat Frame Insertion
+- **`flat_nth`**: Insert a flat (zero aberration) frame every N frames (default: `10`, set to `False` to disable)
+
+### Zernike Mode Settings
+(Active when `enable_zernike = True`)
+
+- **`num_modes`**: Number of Zernike modes to include (default: `25`, excludes piston)
+- **`coefflim_1stmode`**: Coefficient amplitude limit for first modes (default: `0.4` rad)
+- **`coefflim_lastmode`**: Coefficient amplitude limit for last mode (default: `0.4` rad)
+  - Coefficients are linearly interpolated between these limits
+  - Random coefficients are drawn uniformly from `[-limit, +limit]`
+
+### Atmospheric Seeing Settings
+(Active when `enable_seeing = True`)
+
+- **`fried_parameter`** (r₀): Fried parameter in meters (default: `0.4` m)
+  - Characterizes atmospheric turbulence strength
+  - Smaller values = stronger turbulence
+- **`outer_scale`** (L₀): Outer scale of turbulence in meters (default: `10` m)
+- **`speed`**: Wind speed in m/s (default: `10`)
+- **`angle`**: Wind direction in radians (default: `π/4`)
+- **`timespan`**: Total time span for evolution in seconds (default: `100`)
+- **`seeing_global_scaling`**: Global amplitude scaling factor (default: `1`)
+- **`reset_each_frame`**: If `True`, generates independent random phase screens; if `False`, simulates wind-driven evolution (default: `True`)
+
+### Stripe Pattern Settings
+(Active when `enable_stripes = True`)
+
+- **`paramlims_lo`**: Lower limits for `[period, amplitude, phase, angle]`
+- **`paramlims_hi`**: Upper limits for `[period, amplitude, phase, angle]`
+  - Random values drawn uniformly from these ranges
+
+### Complex Sinusoidal Settings
+(Active when `enable_complexsine = True`)
+
+- **`dc_power`**: DC power level (default: `0.7`)
+- **`num_specks`**: Number of speckle components (default: `1`)
+- **`paramlims_lo`**: Lower limits for `[period, amplitude1, angle]`
+- **`paramlims_hi`**: Upper limits for `[period, amplitude1, angle]`
+- **`twosided`**: Enable two-sided patterns with additional amplitude parameters (default: `True`)
+- **`ampl_normconst`**: Amplitude normalization constant (default: `3.2`)
+- **`smoothcoeffs`**: Gaussian smoothing coefficient for temporal continuity (default: `None`, set to `5` to enable)
+- **`store_complexsine_psfswfs`**: Save PSF and pupil plane data (default: `False`)
+
+### Visualization
+- **`plotprobeims`**: List of frame indices to plot (e.g., `[0]`), or `None` to disable
+
+## Output File Structure
+
+### Main Output Files
+Files are saved as compressed NumPy archives (`.npz`) with the naming pattern:
+```
+{savefilename}_file{XX}.npz
+```
+where `XX` is the zero-padded file number (00-49 for 50 files).
+
+### Contents of Main `.npz` Files
+
+Each file contains three arrays:
+
+1. **`all_slmims`** (shape: `[num_samps, npix, npix]`, dtype: `uint8`)
+   - The main SLM image cube
+   - Values range from 0-255, representing phase from 0 to `slmrange` radians
+   - Conversion formula: `phase_rad = (pixel_value - 127) / 255 * slmrange`
+   - Shape: `[num_samples, 2*slm_rad, 2*slm_rad]`
+   - Typically `[10000, 340, 340]` for default settings
+
+2. **`all_slmim_params`** (dict)
+   - Dictionary containing all generation parameters for reproducibility
+   - Contents depend on which pattern types are enabled:
+
+   **For Zernike modes:**
+   - `coeffs`: Random coefficient array `[num_samps, num_modes]`
+   - `num_modes`: Number of Zernike modes
+   - `coefflim_1stmode`: First mode coefficient limit
+   - `coefflim_lastmode`: Last mode coefficient limit
+
+   **For seeing:**
+   - `r0`: Fried parameter (meters)
+   - `L0`: Outer scale (meters)
+   - `windspeed`: Wind speed (m/s)
+   - `windangle`: Wind direction (radians)
+   - `timespan`: Total timespan (seconds)
+   - `seeing_global_scaling`: Scaling factor
+   - `reset_each_frame`: Whether frames are independent
+
+   **For complex sine:**
+   - `coeffs`: Parameter array `[num_samps, num_params, num_specks]`
+   - `paramlims_lo`: Lower parameter limits
+   - `paramlims_hi`: Upper parameter limits
+   - `dc_ampl`: DC amplitude value
+
+   **For stripes:**
+   - `coeffs`: Parameter array for stripe generation
+   - Parameter limits as defined
+
+3. **`slmloc`** (shape: `[3]`, dtype: varies)
+   - SLM location parameters: `[center_x, center_y, radius]`
+   - Example: `[510, 566, 170]`
+   - Used to position the phase pattern on the full SLM array
+
+### Optional PSF/Wavefront Files
+(Only created when `enable_complexsine = True` and `store_complexsine_psfswfs = True`)
+
+Filename pattern: `{savefilename}_PSFWFs_file{XX}.npz`
+
+Contents:
+- **`complexsine_psfs`**: List of complex PSF arrays (cropped to 50×50 pixels)
+- **`complexsine_pupamp`**: List of pupil plane amplitude arrays
+- **`complexsine_pupphase`**: List of pupil plane phase arrays
+
+## Usage Example
+
+```python
+import numpy as np
+
+# Load a data file
+data = np.load('slmcube_20240717_seeing_0.4-10-scl1_rand-flatn10_500K_01_file00.npz',
+               allow_pickle=True)
+
+# Extract components
+slm_images = data['all_slmims']  # [10000, 340, 340] uint8 array
+params = data['all_slmim_params'].item()  # Dictionary of parameters
+slm_location = data['slmloc']  # [center_x, center_y, radius]
+
+# Convert to phase in radians
+slmrange = 4 * np.pi
+phase_rad = (slm_images.astype(float) - 127) / 255 * slmrange
+
+# Access first frame
+first_frame_phase = phase_rad[0, :, :]
+
+# Check if flat frames are included
+if 'reset_each_frame' in params:
+    print(f"Seeing parameters: r0={params['r0']}m, L0={params['L0']}m")
+```
+
+## Dependencies
+
+- `numpy`
+- `matplotlib`
+- `hcipy` (High Contrast Imaging for Python)
+- `scipy`
+- `astropy` (for complex sine mode)
+- Custom modules: `plprobepatterns`, `SLM_encoding_program` (for complex patterns)
+
+## Notes
+
+- The script generates phase patterns in radians, then encodes them as uint8 values (0-255) for SLM control
+- Multiple aberration types can be combined by enabling multiple flags (patterns are summed)
+- The script includes timing diagnostics for seeing generation
+- Final plots show sample frames and RMS wavefront statistics
+- For typical adaptive optics training data, seeing mode is most commonly used
