@@ -86,4 +86,4 @@ A good set of files which represent a typical, basic measurement set would be
 
 * **Source2 parameter file:** `pllabdata_20240708_randsrc2_seeing-rep2_01_slmcube_202400708_seeing_0.4-10-scl1_rand-flatn2_10K_01_file00_src2params`
 
-There are 10 files (`_file00`, `_file01`, ...), each containing 10,000 ALM patterns / measurements.
+There are 10 files (`_file00`, `_file01`, ...), each containing 10,000 SLM patterns / measurements.
