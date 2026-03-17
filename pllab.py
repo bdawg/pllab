@@ -417,7 +417,7 @@ class pllab:
 
 
     def show_ims(self, imagedata=None, ncams=2, fignum=0, zero_firstrow=True,
-                 winparams=None):
+                 winparams=None, ind=None):
         if imagedata is None:
             imagedata = self.all_imcubes
         else:
@@ -432,11 +432,16 @@ class pllab:
                 win = (winparam[0] - wsz // 2, winparam[0] + wsz // 2, winparam[1] - wsz // 2,
                        winparam[1] + wsz // 2)
                 wins.append(win)
+        if ind is None:
+            ind = -1
+            slmim = self.slm.nextim
+        else:
+            slmim = np.zeros_like(self.slm.nextim)
         plt.figure(fignum)
         plt.clf()
         for k in range(ncams):
             plt.subplot(ncams+1, 1, k+1)
-            im = imagedata[k][-1,:,:]
+            im = imagedata[k][ind,:,:]
             if len(self.darkframes) > 0:
                 im = im - self.darkframes[k]
             if zero_firstrow:
@@ -445,7 +450,7 @@ class pllab:
                 im = im[wins[k][0]:wins[k][1], wins[k][2]:wins[k][3]]
             plt.imshow(im)
         plt.subplot(ncams+1, 1, ncams+1)
-        plt.imshow(self.slm.nextim)
+        plt.imshow(slmim)
         plt.tight_layout()
         plt.pause(0.001)
 
